@@ -1,12 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CartItem, CreateOrderInput, Order, PaymentSettings, Penalty, Task, TaskStatus, User } from './types';
+import type { CartItem, CreateOrderInput, CustomPriceOverride, CustomSelection, CustomTypeId, FulfillmentStatus, GivingArticle, Order, PaymentSettings, Penalty, Task, TaskStatus, User } from './types';
 import { quotePrice } from './pricing';
-import { initialTasks, products } from './data';
+import { initialTasks } from './data';
+import { cartTotal, resolveCartLine } from './custom';
+import { initialGivingArticles } from './giving';
 
 type ActionResult = { ok: boolean; message: string };
-type DemoState = { user: User | null; tasks: Task[]; penalties: Penalty[]; cart: CartItem[]; wishlist: string[]; orders: Order[]; paymentSettings: PaymentSettings };
-type CreateTask = { title: string; category: string; description: string; reward: number; brief: string };
+type DemoState = { user: User | null; tasks: Task[]; penalties: Penalty[]; cart: CartItem[]; wishlist: string[]; orders: Order[]; paymentSettings: PaymentSettings; customPrices:Record<string,CustomPriceOverride>;givingArticles:GivingArticle[] };
+type CreateTask = { title: string; category: string; description: string; reward: number; brief: string;orderId?:string };
 type Store = DemoState & {
   loginDemo: (role: 'designer' | 'admin') => void;
   registerDemo: (name: string, email: string) => void;
@@ -15,11 +17,17 @@ type Store = DemoState & {
   submitTask: (id: string, file: File) => ActionResult;
   addCart: (id: string, quantity?: number) => void;
   setCartQuantity: (id: string, qty: number) => void;
+  addCustomToCart: (selection: CustomSelection, quantity:number) => void;
   removeCart: (id: string) => void;
   toggleWishlist: (id: string) => void;
   placeOrder: (data: CreateOrderInput) => Order;
   updatePaymentSettings: (data: PaymentSettings) => void;
   setOrderPaymentStatus: (id: string, status: Order['paymentStatus']) => void;
+  updateOrderTracking: (id:string,status:FulfillmentStatus,note:string,courier:string,trackingNumber:string)=>ActionResult;
+  upsertGivingArticle: (article:GivingArticle)=>ActionResult;
+  deleteGivingArticle: (id:string)=>ActionResult;
+  updateCustomPrice: (id:CustomTypeId,values:CustomPriceOverride)=>ActionResult;
+  setCreatorEarningsVisibility:(visible:boolean)=>void;
   createTask: (task: CreateTask) => ActionResult;
   setTaskStatus: (id: string, status: TaskStatus) => void;
   resetPenalties: (userId?: string) => void;
@@ -30,13 +38,13 @@ const StoreContext = createContext<Store | null>(null);
 const KEY = 'cocioco.shop.demo.v1';
 // The mobile number is provided by the shop owner. Bank/PayPal destinations MUST be filled in by them.
 const defaultPaymentSettings: PaymentSettings = { bankName: '', accountNumber: '', accountHolder: '', paypalEmail: '', whatsappNumber: '6282317422632' };
-function blank(): DemoState { return { user: null, tasks: initialTasks, penalties: [], cart: [], wishlist: [], orders: [], paymentSettings: {...defaultPaymentSettings} }; }
+function blank(): DemoState { return { user: null, tasks: initialTasks, penalties: [], cart: [], wishlist: [], orders: [], paymentSettings: {...defaultPaymentSettings},customPrices:{},givingArticles:initialGivingArticles }; }
 function load(): DemoState {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const state = JSON.parse(raw) as DemoState;
-      if (Array.isArray(state.tasks) && Array.isArray(state.cart)) return { ...blank(), ...state, paymentSettings: { ...defaultPaymentSettings, ...state.paymentSettings } };
+      if (Array.isArray(state.tasks) && Array.isArray(state.cart)) return { ...blank(), ...state, paymentSettings: { ...defaultPaymentSettings, ...state.paymentSettings },givingArticles:Array.isArray(state.givingArticles)?state.givingArticles:initialGivingArticles,customPrices:state.customPrices||{} };
     }
   } catch { /* private browsing / invalid cache */ }
   return blank();
@@ -44,7 +52,7 @@ function load(): DemoState {
 const uid = () => typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DemoState>(load);
-  const { user, tasks, penalties, cart, wishlist, orders, paymentSettings } = state;
+  const { user, tasks, penalties, cart, wishlist, orders, paymentSettings, customPrices, givingArticles } = state;
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage unavailable */ } }, [state]);
 
   const expireTasks = useCallback(() => {
@@ -97,12 +105,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const addCart = useCallback((id: string, quantity = 1) => setState(s => ({ ...s, cart: s.cart.some(i => i.productId === id) ? s.cart.map(i => i.productId === id ? { ...i, quantity: Math.min(20, i.quantity + quantity) } : i) : [...s.cart, { productId: id, quantity }] })), []);
-  const setCartQuantity = useCallback((id: string, qty: number) => setState(s => ({ ...s, cart: qty < 1 ? s.cart.filter(i => i.productId !== id) : s.cart.map(i => i.productId === id ? { ...i, quantity: Math.min(20, qty) } : i) })), []);
-  const removeCart = useCallback((id: string) => setState(s => ({ ...s, cart: s.cart.filter(i => i.productId !== id) })), []);
+  const addCustomToCart = useCallback((custom:CustomSelection,quantity:number)=>setState(s=>({ ...s,cart:[...s.cart,{productId:'custom',lineId:uid(),quantity:Math.max(1,Math.min(100,quantity)),custom}] })),[]);
+  const setCartQuantity = useCallback((id: string, qty: number) => setState(s => ({ ...s, cart: qty < 1 ? s.cart.filter(i => (i.lineId||i.productId) !== id) : s.cart.map(i => (i.lineId||i.productId) === id ? { ...i, quantity: Math.min(100, qty) } : i) })), []);
+  const removeCart = useCallback((id: string) => setState(s => ({ ...s, cart: s.cart.filter(i => (i.lineId||i.productId) !== id) })), []);
   const toggleWishlist = useCallback((id: string) => setState(s => ({ ...s, wishlist: s.wishlist.includes(id) ? s.wishlist.filter(x => x !== id) : [...s.wishlist, id] })), []);
   const placeOrder = (data: CreateOrderInput): Order => {
     // The cart has already been selected; the server must enforce stock, prices and FX in Phase B.
-    const subtotal = cart.reduce((sum, item) => sum + (products.find(p => p.id === item.productId)?.price || 0) * item.quantity, 0);
+    const subtotal = cartTotal(cart,customPrices);
+    const lines=cart.map(i=>resolveCartLine(i,customPrices)).filter((line):line is NonNullable<typeof line>=>Boolean(line));
     const totalIDR = Math.round(subtotal * (1 - data.discount));
     const currency: Order['currency'] = data.country === 'ID' ? 'IDR' : 'USD';
     const order: Order = {
@@ -114,7 +124,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fxRate: data.fxRate,
       fxAsOf: data.fxAsOf,
       fxSource: data.country === 'ID' ? 'none' : data.fxSource,
-      at: Date.now(), items: [...cart],
+      at: Date.now(), items: [...cart],lines,
+      fulfillmentStatus:'awaiting_payment',trackingEvents:[{id:uid(),status:'awaiting_payment',at:Date.now(),note:'Order created. Awaiting payment verification.'}],
+      collectorAlias:data.leaderboardOptIn?(data.collectorAlias||'Cutie Collector').trim().slice(0,24):undefined,leaderboardOptIn:Boolean(data.leaderboardOptIn),
       customerName: data.customerName.trim(), email: data.email.trim(),
       phone: data.phone.trim(), address: data.address.trim(),
       payment: data.country === 'ID' ? 'bank_transfer' : 'paypal_manual',
@@ -131,13 +143,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } }));
   }, []);
   const setOrderPaymentStatus = useCallback((id: string, status: Order['paymentStatus']) => {
-    setState(s => ({ ...s, orders: s.orders.map(o => o.id === id ? { ...o, paymentStatus: status } : o) }));
+    setState(s => ({ ...s, orders: s.orders.map(o => {
+      if(o.id!==id)return o;
+      if(status==='verified' && o.paymentStatus!=='verified') {
+        return { ...o,paymentStatus:status,fulfillmentStatus:'confirmed' as const,trackingEvents:[...(o.trackingEvents||[]),{id:uid(),status:'confirmed' as const,at:Date.now(),note:'Payment verified by COCIOCO admin.'}] };
+      }
+      return {...o,paymentStatus:status};
+    }) }));
   }, []);
+  const updateOrderTracking=(id:string,status:FulfillmentStatus,note:string,courier:string,trackingNumber:string):ActionResult=>{
+    if(user?.role!=='admin')return {ok:false,message:'Admin preview login required.'};
+    const order=orders.find(o=>o.id===id);
+    if(!order)return {ok:false,message:'Order not found.'};
+    if(status!=='awaiting_payment'&&status!=='cancelled'&&order.paymentStatus!=='verified')return {ok:false,message:'Verify payment before starting fulfillment.'};
+    setState(s=>({...s,orders:s.orders.map(o=>o.id===id ? {...o,fulfillmentStatus:status,courier:courier.trim().slice(0,80),trackingNumber:trackingNumber.trim().slice(0,100),trackingEvents:[...(o.trackingEvents||[]),{id:uid(),at:Date.now(),status,note:note.trim().slice(0,350)||'Status updated by COCIOCO.'}]}:o)}));
+    return {ok:true,message:`Order ${id} tracking updated.`};
+  };
+  const upsertGivingArticle=(article:GivingArticle):ActionResult=>{
+    if(user?.role!=='admin')return {ok:false,message:'Admin preview login required.'};
+    if(article.title.trim().length<5||article.excerpt.trim().length<10||article.content.trim().length<30)return {ok:false,message:'Please add a meaningful title, excerpt and article body.'};
+    const allowedCover=/^\/assets\/[a-z0-9-]+\.svg$/.test(article.cover)||/^https:\/\/[^\s]+$/.test(article.cover);
+    const clean={...article,title:article.title.trim(),excerpt:article.excerpt.trim(),content:article.content.trim(),cover:allowedCover?article.cover:'/assets/photocards.svg',updatedAt:Date.now()};
+    setState(s=>({...s,givingArticles:s.givingArticles.some(a=>a.id===article.id)?s.givingArticles.map(a=>a.id===article.id?clean:a):[clean,...s.givingArticles]}));
+    return {ok:true,message:article.published?'Article published in Gives Back.':'Article saved as draft.'};
+  };
+  const deleteGivingArticle=(id:string):ActionResult=>{
+    if(user?.role!=='admin')return {ok:false,message:'Admin preview login required.'};
+    setState(s=>({...s,givingArticles:s.givingArticles.filter(a=>a.id!==id)}));
+    return {ok:true,message:'Article removed from this browser.'};
+  };
+  const updateCustomPrice=(id:CustomTypeId,values:CustomPriceOverride):ActionResult=>{
+    if(user?.role!=='admin')return {ok:false,message:'Admin preview login required.'};
+    if(!Number.isFinite(values.base)||!Number.isFinite(values.designFee)||values.base<1000||values.designFee<0)return {ok:false,message:'Use valid nonnegative prices.'};
+    setState(s=>({...s,customPrices:{...s.customPrices,[id]:{base:Math.round(values.base),designFee:Math.round(values.designFee)}}}));
+    return {ok:true,message:'Custom price updated in local preview.'};
+  };
+  const setCreatorEarningsVisibility=useCallback((visible:boolean)=>setState(s=>({...s,user:s.user?{...s.user,showEarningsOnLeaderboard:visible}:null})),[]);
   const createTask = (input: CreateTask): ActionResult => {
     if (user?.role !== 'admin') return { ok: false, message: 'Admin access required.' };
     if (!input.title.trim() || input.reward < 1000) return { ok: false, message: 'Add a valid task title and reward.' };
+    if(input.orderId){ const origin=orders.find(o=>o.id===input.orderId);
+      if(!origin || origin.paymentStatus!=='verified' || origin.linkedTaskId || !(origin.lines||[]).some(l=>l.custom?.designService==='designer'))return {ok:false,message:'Custom order must be verified, unlinked, and request design service.'};
+    }
     const task: Task = { id: `CO-${String(Math.floor(Math.random() * 899) + 100)}`, title: input.title.trim(), category: input.category || 'Design', description: input.description.trim(), reward: input.reward, durationHours: 8, status: 'available', postedAt: Date.now(), art: '/assets/elements.svg', tone: 'pink', skills: ['Creative Design', 'Figma'], deliverables: ['Editable source file', 'High-resolution export'], brief: input.brief, submissions: [] };
-    setState(s => ({ ...s, tasks: [task, ...s.tasks] }));
+    setState(s => ({ ...s, tasks: [task, ...s.tasks],orders:input.orderId?s.orders.map(o=>o.id===input.orderId?{...o,linkedTaskId:task.id}:o):s.orders }));
     return { ok: true, message: 'New commission published to the board.' };
   };
   const setTaskStatus = useCallback((id: string, status: TaskStatus) => setState(s => ({ ...s, tasks: s.tasks.map(t => t.id === id ? { ...t, status, ...(status === 'available' ? { assignedTo: undefined, assigneeName: undefined, claimedAt: undefined, deadlineAt: undefined } : {}), ...(status === 'revision' ? { deadlineAt: Date.now() + 4 * 3600000 } : {}) } : t) })), []);
@@ -155,7 +204,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resetPenalties = useCallback((userId?: string) => setState(s => ({ ...s, penalties: userId ? s.penalties.filter(p => p.userId !== userId) : [] })), []);
   const resetDemo = useCallback(() => setState(blank()), []);
 
-  const value = useMemo<Store>(() => ({ user, tasks, penalties, cart, wishlist, orders, paymentSettings, loginDemo, registerDemo, logout, claimTask, submitTask, addCart, setCartQuantity, removeCart, toggleWishlist, placeOrder, updatePaymentSettings, setOrderPaymentStatus, createTask, setTaskStatus, resetPenalties, simulateExpiry, resetDemo }), [user, tasks, penalties, cart, wishlist, orders, paymentSettings, loginDemo, registerDemo, logout, addCart, setCartQuantity, removeCart, toggleWishlist, updatePaymentSettings, setOrderPaymentStatus, setTaskStatus, resetPenalties, simulateExpiry, resetDemo]);
+  const value:Store={ user,tasks,penalties,cart,wishlist,orders,paymentSettings,customPrices,givingArticles,loginDemo,registerDemo,logout,claimTask,submitTask,addCart,addCustomToCart,setCartQuantity,removeCart,toggleWishlist,placeOrder,updatePaymentSettings,setOrderPaymentStatus,updateOrderTracking,upsertGivingArticle,deleteGivingArticle,updateCustomPrice,setCreatorEarningsVisibility,createTask,setTaskStatus,resetPenalties,simulateExpiry,resetDemo };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 export function useStore() { const ctx = useContext(StoreContext); if (!ctx) throw new Error('StoreProvider missing'); return ctx; }

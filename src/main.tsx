@@ -5,6 +5,7 @@ import { StoreProvider } from './store';
 import App from './App';
 import './styles.css';
 import './phase-a.css';
+import './phase-a-plus.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode><BrowserRouter><StoreProvider><App /></StoreProvider></BrowserRouter></StrictMode>

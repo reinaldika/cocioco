@@ -2,7 +2,8 @@ import { Link, useParams } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, CircleCheck, Copy, CreditCard, ExternalLink, Globe2, Info, LockKeyhole, MessageCircleHeart, ShieldAlert, ShoppingBag, Wallet } from 'lucide-react';
 import { useStore } from '../store';
-import { products } from '../data';
+import { resolveCartLine } from '../custom';
+import { Truck } from 'lucide-react';
 import { countryName } from '../countries';
 import { showCurrency, INTERNATIONAL_MULTIPLIER } from '../pricing';
 import { useToast } from '../components/Toast';
@@ -63,11 +64,12 @@ export default function Payment() {
       <div className="payment-demo-notice"><LockKeyhole size={21}/><div><strong>Phase A interactive preview — payment is not verified online.</strong><p>Orders and settings exist only in this browser, and WhatsApp actions do not change order status. Do not advertise this as a functioning checkout until Phase B connects a database, secure admin access, shared payment instructions, and verification.</p></div></div>
     </div>
     <aside className="payment-sidebar"><div className="payment-order-card"><span className="eyebrow">YOUR ORDER</span><h2>A little recap.</h2><div className="payment-order-ref"><span>ORDER ID</span><button onClick={()=>copyValue(order.id,'order')} title="Copy order ID">{order.id} {copied==='order'?<Check size={16}/>:<Copy size={15}/>}</button></div>
-      <div className="payment-order-items">{order.items.map(item=>{const p=products.find(product=>product.id===item.productId);return p?<div key={item.productId} className="payment-order-item"><img src={p.image} alt=""/><div><strong>{p.name}</strong><span>Qty {item.quantity}</span></div></div>:null;})}</div>
+      <div className="payment-order-items">{(order.lines?.length?order.lines:order.items.map(item=>resolveCartLine(item)).filter((l):l is NonNullable<typeof l>=>Boolean(l))).map(line=><div key={line.key} className="payment-order-item"><img src={line.image} alt=""/><div><strong>{line.name}</strong><span>Qty {line.quantity} · {line.detail}</span></div></div>)}</div>
       <div className="payment-order-summary-row"><span>Destination</span><strong>{countryName(order.country||'ID')}</strong></div>
       <div className="payment-order-summary-row"><span>Payment</span><strong>{international?'PayPal':'Bank transfer'}</strong></div>
-      <div className="payment-order-summary-row"><span>Order status</span><strong className="order-awaiting">AWAITING PAYMENT</strong></div>
+      <div className="payment-order-summary-row"><span>Order status</span><strong className="order-awaiting">{order.paymentStatus.replaceAll('_',' ').toUpperCase()}</strong></div>
       <div className="payment-order-total"><span>PRODUCTS TOTAL</span><strong>{payable}</strong></div>
+      <Link className="cx-payment-tracking" to={`/track/${order.id}`}><Truck size={17}/> Track this order <ArrowRight size={16}/></Link>
       <Link to="/shop" className="payment-shop-link"><ShoppingBag size={17}/> Continue shopping <ArrowRight size={17}/></Link>
     </div><Link className="payment-back-link" to="/shop"><ArrowLeft size={17}/> Back to the shop</Link></aside></div>
   </div>;

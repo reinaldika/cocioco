@@ -12,6 +12,10 @@ import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
 import About from './pages/About';
+import CustomStudio from './pages/CustomStudio';
+import TrackOrder from './pages/TrackOrder';
+import Leaderboard from './pages/Leaderboard';
+import GivesBack, { GivesBackArticle } from './pages/GivesBack';
 
 export default function App() {
   return <ToastProvider><Layout><Routes>
@@ -19,6 +23,12 @@ export default function App() {
     <Route path="/shop" element={<Shop/>}/>
     <Route path="/shop/:slug" element={<ProductPage/>}/>
     <Route path="/cart" element={<Cart/>}/>
+    <Route path="/custom" element={<CustomStudio/>}/>
+    <Route path="/track" element={<TrackOrder/>}/>
+    <Route path="/track/:id" element={<TrackOrder/>}/>
+    <Route path="/leaderboard" element={<Leaderboard/>}/>
+    <Route path="/giving" element={<GivesBack/>}/>
+    <Route path="/giving/:slug" element={<GivesBackArticle/>}/>
     <Route path="/payment/:id" element={<Payment/>}/>
     <Route path="/commissions" element={<Commissions/>}/>
     <Route path="/board" element={<Navigate to="/commissions#board" replace/>}/>

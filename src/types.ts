@@ -35,9 +35,17 @@ export type Task = {
   deadlineAt?: number;
   submissions: Submission[];
 };
-export type User = { id: string; name: string; email: string; role: 'designer' | 'admin'; joinedAt: number };
+export type User = { id: string; name: string; email: string; role: 'designer' | 'admin'; joinedAt: number;showEarningsOnLeaderboard?:boolean };
 export type Penalty = { id: string; userId: string; taskId: string; level: number; hours: number; at: number; until: number | null };
-export type CartItem = { productId: string; quantity: number };
+export type CustomTypeId = 'collection-book' | 'card-holder' | 'keychain' | 'photocard-set';
+export type CustomSelection = { typeId: CustomTypeId;sizeId:string;materialId:string;finishId:string;designService:'upload'|'designer';notes?:string;artworkName?:string };
+export type CustomPriceOverride = { base: number; designFee: number };
+export type CartItem = { productId: string; quantity: number;lineId?:string;custom?:CustomSelection };
+export type OrderLine = {key:string;name:string;image:string;quantity:number;category:'physical'|'digital'|'custom';unitPrice:number;designFee:number;total:number;detail:string;custom?:CustomSelection};
+export type FulfillmentStatus = 'awaiting_payment'|'confirmed'|'design_review'|'preparing'|'packing'|'handed_to_courier'|'in_transit'|'delivered'|'cancelled';
+export type TrackingEvent = {id:string;status:FulfillmentStatus;at:number;note:string};
+export type GivingArticle = { id:string;slug:string;title:string;category:string;excerpt:string;content:string;cover:string;coverTone:'pink'|'purple'|'lime';published:boolean;createdAt:number;updatedAt:number;kind:'intro'|'activity'};
+
 export type Order = {
   id: string;
   total: number; // original discounted total in IDR, for reporting
@@ -49,6 +57,14 @@ export type Order = {
   fxAsOf: string;
   at: number;
   items: CartItem[];
+  lines?: OrderLine[];
+  fulfillmentStatus?: FulfillmentStatus;
+  trackingEvents?: TrackingEvent[];
+  courier?: string;
+  trackingNumber?: string;
+  collectorAlias?: string;
+  leaderboardOptIn?: boolean;
+  linkedTaskId?:string;
   customerName: string;
   email: string;
   phone: string;
@@ -73,4 +89,6 @@ export type CreateOrderInput = {
   fxRate: number;
   fxSource: 'api' | 'demo' | 'none';
   fxAsOf: string;
+  collectorAlias?:string;
+  leaderboardOptIn?:boolean;
 };

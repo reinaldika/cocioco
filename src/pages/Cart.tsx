@@ -2,13 +2,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Globe2, Info, LockKeyhole, Minus, Plus, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react';
 import { money, products } from '../data';
+import { cartTotal, isPhysicalLine, resolveCartLine } from '../custom';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 import { countries, countryName, isInternational } from '../countries';
 import { DEMO_USD_TO_IDR, INTERNATIONAL_MULTIPLIER, loadUsdIdr, quotePrice, showCurrency, type FxQuote } from '../pricing';
 
 export default function Cart() {
-  const { cart, setCartQuantity, removeCart, placeOrder } = useStore();
+  const { cart, setCartQuantity, removeCart, placeOrder,customPrices } = useStore();
   const toast = useToast();
   const navigate = useNavigate();
   const [coupon, setCoupon] = useState('');
@@ -19,10 +20,12 @@ export default function Cart() {
   const [fxLoading, setFxLoading] = useState(false);
   const [fxRefresh, setFxRefresh] = useState(0);
   const [form, setForm] = useState({ customerName:'', email:'', phone:'', address:'' });
-  const hasPhysicalItems = cart.some(item => products.find(p => p.id===item.productId)?.category === 'physical');
+  const [clubOptIn,setClubOptIn]=useState(false);
+  const [collectorAlias,setCollectorAlias]=useState('');
+  const hasPhysicalItems = cart.some(isPhysicalLine);
   const international = isInternational(country);
   const currency = international ? 'USD' : 'IDR';
-  const subtotalIDR = cart.reduce((sum, item) => sum + (products.find(p => p.id === item.productId)?.price || 0)*item.quantity, 0);
+  const subtotalIDR = cartTotal(cart,customPrices);
   const discountedIDR = Math.round(subtotalIDR * (couponActive ? .9 : 1));
   const payable = quotePrice(discountedIDR, country, fx.usdToIdr);
   const fmt = (idr: number) => showCurrency(quotePrice(idr, country, fx.usdToIdr), currency);
@@ -48,7 +51,7 @@ export default function Cart() {
     if (!cart.length || !country || fxLoading) return;
     const result = placeOrder({ ...form, country, discount: couponActive ? .1 : 0,
       fxRate: international ? fx.usdToIdr : 1,
-      fxSource: international ? fx.source : 'none', fxAsOf: international ? fx.asOf : '',
+      fxSource: international ? fx.source : 'none', fxAsOf: international ? fx.asOf : '',collectorAlias,leaderboardOptIn:clubOptIn,
     });
     navigate(`/payment/${result.id}`);
   }
@@ -57,17 +60,17 @@ export default function Cart() {
     {cart.length ? <div className="cart-grid">
       <div className="cart-items">
         <div className="cart-column-head"><span>YOUR GOODIES ({cart.reduce((s,i)=>s+i.quantity,0)})</span><Link to="/shop">Keep shopping <ArrowRight size={15}/></Link></div>
-        {cart.map(item => { const p=products.find(x => x.id===item.productId); if (!p) return null;
-          return <div className="cart-line" key={item.productId}>
-            <img src={p.image} alt={p.name} style={{background:p.color}}/>
-            <div className="cart-line-details"><span className="cart-collection">{p.category==='digital' ? 'DIGITAL DOWNLOAD' : p.collection.toUpperCase()}</span>
-              <Link to={`/shop/${p.slug}`} className="cart-item-title">{p.name}</Link>
-              <strong>{country ? fmt(p.price) : money(p.price)}</strong>
-              {international && <small className="conversion-hint">International price = IDR ÷ FX × 3</small>}
-              <div className="cart-line-bottom"><div className="qty-control"><button aria-label={`Decrease ${p.name} quantity`} onClick={()=>setCartQuantity(p.id,item.quantity-1)}><Minus size={15}/></button><span>{item.quantity}</span><button aria-label={`Increase ${p.name} quantity`} onClick={()=>setCartQuantity(p.id,item.quantity+1)}><Plus size={15}/></button></div><button className="remove-btn" onClick={()=>removeCart(p.id)}><Trash2 size={16}/> Remove</button></div>
-            </div>
-          </div>;
-        })}
+        {cart.map(item => {const line=resolveCartLine(item,customPrices);if(!line)return null;return <div className="cart-line" key={line.key}>
+          <img src={line.image} alt={line.name} style={{background:item.custom?'#e6d2ff':'#f6dcf0'}}/>
+          <div className="cart-line-details"><span className="cart-collection">{line.category==='custom'?'CUSTOM STUDIO':line.category==='digital'?'DIGITAL DOWNLOAD':'COCIOCO COLLECTION'}</span>
+            {line.category==='custom'?<Link to="/custom" className="cart-item-title">{line.name}</Link>:<Link to={`/shop/${products.find(p=>p.id===item.productId)?.slug||''}`} className="cart-item-title">{line.name}</Link>}
+            <small className="cx-cart-detail">{line.detail}</small>
+            <strong>{country ? fmt(line.total) : money(line.total)}</strong>
+            {line.designFee>0&&<small className="conversion-hint">Includes one-time designer-service fee {money(line.designFee)}</small>}
+            {international && <small className="conversion-hint">International price = IDR ÷ FX × 3</small>}
+            <div className="cart-line-bottom"><div className="qty-control"><button aria-label={`Decrease ${line.name} quantity`} onClick={()=>setCartQuantity(line.key,item.quantity-1)}><Minus size={15}/></button><span>{item.quantity}</span><button aria-label={`Increase ${line.name} quantity`} onClick={()=>setCartQuantity(line.key,item.quantity+1)}><Plus size={15}/></button></div><button className="remove-btn" onClick={()=>removeCart(line.key)}><Trash2 size={16}/> Remove</button></div>
+          </div>
+        </div>})}
         <div className="cart-reassurance"><Globe2 size={20}/><div><b>Your world, your currency.</b><p>Choose a destination to see local or international prices before proceeding.</p></div></div>
       </div>
       <aside className="cart-summary">
@@ -100,6 +103,7 @@ export default function Cart() {
           <label>Email address<input value={form.email} type="email" required maxLength={150} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@email.com" /></label>
           <label>WhatsApp number<input value={form.phone} type="tel" required maxLength={30} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="e.g. +62 812…" /></label>
           <label>{hasPhysicalItems ? 'Delivery address (required)' : 'Address / order note (optional)'}<textarea value={form.address} required={hasPhysicalItems} onChange={e=>setForm({...form,address:e.target.value})} placeholder={hasPhysicalItems ? 'Street, city, postal code, country' : 'Anything you want us to know'} rows={3}/></label>
+          <div className="cx-club-checkbox"><label><input type="checkbox" checked={clubOptIn} onChange={e=>setClubOptIn(e.target.checked)}/><span>Join the optional <strong>COCIOCO Collectors Club</strong> leaderboard (verified orders only, no spending amounts shown).</span></label>{clubOptIn&&<input placeholder="Public collector nickname" required maxLength={24} value={collectorAlias} onChange={e=>setCollectorAlias(e.target.value.replace(/[^a-zA-Z0-9_.-]/g,''))}/>}</div>
           <div className="checkout-route-note"><LockKeyhole size={18}/><span>Next: {international ? 'PayPal transfer instructions (USD)' : 'Indonesian bank transfer instructions (IDR)'}. Payment proof is sent manually through WhatsApp.</span></div>
           <button type="submit" className="btn btn-black summary-checkout">Go to payment details <ArrowRight size={18}/></button>
           <button type="button" className="back-checkout" onClick={()=>setCheckout(false)}>Back to bag summary</button>
