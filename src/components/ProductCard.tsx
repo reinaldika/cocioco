@@ -16,7 +16,7 @@ export default function ProductCard({ product }: { product: Product }) {
       <button type="button" className={`favorite-btn ${favorited ? 'is-favorite' : ''}`} onClick={() => { toggleWishlist(product.id); toast(favorited ? 'Removed from your favorites.' : 'Added to your favorites! ♡'); }} aria-label={favorited ? `Remove ${product.name} from favorites` : `Favorite ${product.name}`}><Heart size={20} fill={favorited ? 'currentColor' : 'none'} /></button>
       <button type="button" className="quick-add" onClick={() => { addCart(product.id); toast(`${product.name} added to your bag!`); }} aria-label={`Add ${product.name} to bag`}><Plus size={20} /></button>
     </div>
-    <div className="product-meta"><span>{product.collection} <span className="meta-dot">✳</span> {product.category === 'digital' ? 'Digital download' : 'Collectible'}</span><span className="tiny-arrow"><ArrowUpRight size={16}/></span></div>
+    <div className="product-meta"><span>{product.collection}  {product.category === 'digital' ? 'Digital download' : 'Collectible'}</span><span className="tiny-arrow"><ArrowUpRight size={16}/></span></div>
     <Link to={`/shop/${product.slug}`} className="product-name">{product.name}</Link>
     <div className="product-price">{money(product.price)}</div>
   </motion.article>;

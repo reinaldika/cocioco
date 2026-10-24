@@ -38,4 +38,39 @@ export type Task = {
 export type User = { id: string; name: string; email: string; role: 'designer' | 'admin'; joinedAt: number };
 export type Penalty = { id: string; userId: string; taskId: string; level: number; hours: number; at: number; until: number | null };
 export type CartItem = { productId: string; quantity: number };
-export type Order = { id: string; total: number; at: number; items: CartItem[]; customerName: string; email: string; address: string; payment: string };
+export type Order = {
+  id: string;
+  total: number; // original discounted total in IDR, for reporting
+  amountDue: number; // country-dependent payable total (excludes any shipping costs)
+  currency: 'IDR' | 'USD';
+  country: string;
+  fxRate: number;
+  fxSource: 'api' | 'demo' | 'none';
+  fxAsOf: string;
+  at: number;
+  items: CartItem[];
+  customerName: string;
+  email: string;
+  phone: string;
+  address: string;
+  payment: 'bank_transfer' | 'paypal_manual';
+  paymentStatus: 'awaiting_payment' | 'pending_verification' | 'verified';
+};
+export type PaymentSettings = {
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
+  paypalEmail: string;
+  whatsappNumber: string;
+};
+export type CreateOrderInput = {
+  customerName: string;
+  email: string;
+  phone: string;
+  address: string;
+  country: string;
+  discount: number;
+  fxRate: number;
+  fxSource: 'api' | 'demo' | 'none';
+  fxAsOf: string;
+};

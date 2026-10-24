@@ -1,9 +1,6 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 
-export function Spark({ className = '', style, color = '#d9ef82' }: { className?: string; style?: CSSProperties; color?: string }) {
-  return <motion.span aria-hidden="true" className={`spark-shape ${className}`} style={{ color, ...style }} animate={{ rotate: [0, 15, -10, 0] }} transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}>✳</motion.span>;
-}
 export function PixelHeart({ className = '' }: { className?: string }) {
   return <span aria-hidden="true" className={`pixel-heart ${className}`}>♥</span>;
 }

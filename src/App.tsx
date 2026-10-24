@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import Shop from './pages/Shop';
 import ProductPage from './pages/ProductPage';
 import Cart from './pages/Cart';
+import Payment from './pages/Payment';
 import Commissions from './pages/Commissions';
 import TaskDetail from './pages/TaskDetail';
 import Dashboard from './pages/Dashboard';
@@ -18,6 +19,7 @@ export default function App() {
     <Route path="/shop" element={<Shop/>}/>
     <Route path="/shop/:slug" element={<ProductPage/>}/>
     <Route path="/cart" element={<Cart/>}/>
+    <Route path="/payment/:id" element={<Payment/>}/>
     <Route path="/commissions" element={<Commissions/>}/>
     <Route path="/board" element={<Navigate to="/commissions#board" replace/>}/>
     <Route path="/commissions/:id" element={<TaskDetail/>}/>

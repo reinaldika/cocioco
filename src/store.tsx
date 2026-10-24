@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CartItem, Order, Penalty, Task, TaskStatus, User } from './types';
+import type { CartItem, CreateOrderInput, Order, PaymentSettings, Penalty, Task, TaskStatus, User } from './types';
+import { quotePrice } from './pricing';
 import { initialTasks, products } from './data';
 
 type ActionResult = { ok: boolean; message: string };
-type DemoState = { user: User | null; tasks: Task[]; penalties: Penalty[]; cart: CartItem[]; wishlist: string[]; orders: Order[] };
+type DemoState = { user: User | null; tasks: Task[]; penalties: Penalty[]; cart: CartItem[]; wishlist: string[]; orders: Order[]; paymentSettings: PaymentSettings };
 type CreateTask = { title: string; category: string; description: string; reward: number; brief: string };
 type Store = DemoState & {
   loginDemo: (role: 'designer' | 'admin') => void;
@@ -16,7 +17,9 @@ type Store = DemoState & {
   setCartQuantity: (id: string, qty: number) => void;
   removeCart: (id: string) => void;
   toggleWishlist: (id: string) => void;
-  placeOrder: (data: { customerName: string; email: string; address: string; payment: string; discount: number }) => Order;
+  placeOrder: (data: CreateOrderInput) => Order;
+  updatePaymentSettings: (data: PaymentSettings) => void;
+  setOrderPaymentStatus: (id: string, status: Order['paymentStatus']) => void;
   createTask: (task: CreateTask) => ActionResult;
   setTaskStatus: (id: string, status: TaskStatus) => void;
   resetPenalties: (userId?: string) => void;
@@ -25,13 +28,15 @@ type Store = DemoState & {
 };
 const StoreContext = createContext<Store | null>(null);
 const KEY = 'cocioco.shop.demo.v1';
-function blank(): DemoState { return { user: null, tasks: initialTasks, penalties: [], cart: [], wishlist: [], orders: [] }; }
+// The mobile number is provided by the shop owner. Bank/PayPal destinations MUST be filled in by them.
+const defaultPaymentSettings: PaymentSettings = { bankName: '', accountNumber: '', accountHolder: '', paypalEmail: '', whatsappNumber: '6282317422632' };
+function blank(): DemoState { return { user: null, tasks: initialTasks, penalties: [], cart: [], wishlist: [], orders: [], paymentSettings: {...defaultPaymentSettings} }; }
 function load(): DemoState {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const state = JSON.parse(raw) as DemoState;
-      if (Array.isArray(state.tasks) && Array.isArray(state.cart)) return state;
+      if (Array.isArray(state.tasks) && Array.isArray(state.cart)) return { ...blank(), ...state, paymentSettings: { ...defaultPaymentSettings, ...state.paymentSettings } };
     }
   } catch { /* private browsing / invalid cache */ }
   return blank();
@@ -39,7 +44,7 @@ function load(): DemoState {
 const uid = () => typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DemoState>(load);
-  const { user, tasks, penalties, cart, wishlist, orders } = state;
+  const { user, tasks, penalties, cart, wishlist, orders, paymentSettings } = state;
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage unavailable */ } }, [state]);
 
   const expireTasks = useCallback(() => {
@@ -95,12 +100,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const setCartQuantity = useCallback((id: string, qty: number) => setState(s => ({ ...s, cart: qty < 1 ? s.cart.filter(i => i.productId !== id) : s.cart.map(i => i.productId === id ? { ...i, quantity: Math.min(20, qty) } : i) })), []);
   const removeCart = useCallback((id: string) => setState(s => ({ ...s, cart: s.cart.filter(i => i.productId !== id) })), []);
   const toggleWishlist = useCallback((id: string) => setState(s => ({ ...s, wishlist: s.wishlist.includes(id) ? s.wishlist.filter(x => x !== id) : [...s.wishlist, id] })), []);
-  const placeOrder = (data: { customerName: string; email: string; address: string; payment: string; discount: number }): Order => {
+  const placeOrder = (data: CreateOrderInput): Order => {
+    // The cart has already been selected; the server must enforce stock, prices and FX in Phase B.
     const subtotal = cart.reduce((sum, item) => sum + (products.find(p => p.id === item.productId)?.price || 0) * item.quantity, 0);
-    const order: Order = { id: `CC-${Date.now().toString().slice(-8)}`, total: Math.round(subtotal * (1 - data.discount)), at: Date.now(), items: [...cart], customerName: data.customerName, email: data.email, address: data.address, payment: data.payment };
+    const totalIDR = Math.round(subtotal * (1 - data.discount));
+    const currency: Order['currency'] = data.country === 'ID' ? 'IDR' : 'USD';
+    const order: Order = {
+      id: `CC-${Date.now().toString(36).toUpperCase()}`,
+      total: totalIDR,
+      amountDue: quotePrice(totalIDR, data.country, data.fxRate),
+      currency,
+      country: data.country,
+      fxRate: data.fxRate,
+      fxAsOf: data.fxAsOf,
+      fxSource: data.country === 'ID' ? 'none' : data.fxSource,
+      at: Date.now(), items: [...cart],
+      customerName: data.customerName.trim(), email: data.email.trim(),
+      phone: data.phone.trim(), address: data.address.trim(),
+      payment: data.country === 'ID' ? 'bank_transfer' : 'paypal_manual',
+      paymentStatus: 'awaiting_payment',
+    };
     setState(s => ({ ...s, orders: [order, ...s.orders], cart: [] }));
     return order;
   };
+  const updatePaymentSettings = useCallback((settings: PaymentSettings) => {
+    setState(s => ({ ...s, paymentSettings: {
+      bankName: settings.bankName.trim(), accountHolder: settings.accountHolder.trim(),
+      accountNumber: settings.accountNumber.trim(), paypalEmail: settings.paypalEmail.trim(),
+      whatsappNumber: settings.whatsappNumber.replace(/[^0-9]/g, ''),
+    } }));
+  }, []);
+  const setOrderPaymentStatus = useCallback((id: string, status: Order['paymentStatus']) => {
+    setState(s => ({ ...s, orders: s.orders.map(o => o.id === id ? { ...o, paymentStatus: status } : o) }));
+  }, []);
   const createTask = (input: CreateTask): ActionResult => {
     if (user?.role !== 'admin') return { ok: false, message: 'Admin access required.' };
     if (!input.title.trim() || input.reward < 1000) return { ok: false, message: 'Add a valid task title and reward.' };
@@ -123,7 +155,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resetPenalties = useCallback((userId?: string) => setState(s => ({ ...s, penalties: userId ? s.penalties.filter(p => p.userId !== userId) : [] })), []);
   const resetDemo = useCallback(() => setState(blank()), []);
 
-  const value = useMemo<Store>(() => ({ user, tasks, penalties, cart, wishlist, orders, loginDemo, registerDemo, logout, claimTask, submitTask, addCart, setCartQuantity, removeCart, toggleWishlist, placeOrder, createTask, setTaskStatus, resetPenalties, simulateExpiry, resetDemo }), [user, tasks, penalties, cart, wishlist, orders, loginDemo, registerDemo, logout, addCart, setCartQuantity, removeCart, toggleWishlist, setTaskStatus, resetPenalties, simulateExpiry, resetDemo]);
+  const value = useMemo<Store>(() => ({ user, tasks, penalties, cart, wishlist, orders, paymentSettings, loginDemo, registerDemo, logout, claimTask, submitTask, addCart, setCartQuantity, removeCart, toggleWishlist, placeOrder, updatePaymentSettings, setOrderPaymentStatus, createTask, setTaskStatus, resetPenalties, simulateExpiry, resetDemo }), [user, tasks, penalties, cart, wishlist, orders, paymentSettings, loginDemo, registerDemo, logout, addCart, setCartQuantity, removeCart, toggleWishlist, updatePaymentSettings, setOrderPaymentStatus, setTaskStatus, resetPenalties, simulateExpiry, resetDemo]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 export function useStore() { const ctx = useContext(StoreContext); if (!ctx) throw new Error('StoreProvider missing'); return ctx; }

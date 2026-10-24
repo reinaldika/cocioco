@@ -1,17 +1,112 @@
-import { Link } from 'react-router-dom';
-import { useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, Minus, Plus, ShoppingBag, Sparkles, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Globe2, Info, LockKeyhole, Minus, Plus, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react';
 import { money, products } from '../data';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
-import type { Order } from '../types';
+import { countries, countryName, isInternational } from '../countries';
+import { DEMO_USD_TO_IDR, INTERNATIONAL_MULTIPLIER, loadUsdIdr, quotePrice, showCurrency, type FxQuote } from '../pricing';
+
 export default function Cart() {
-  const { cart, setCartQuantity, removeCart, placeOrder } = useStore(); const toast = useToast();
-  const [coupon, setCoupon] = useState(''); const [couponActive, setCouponActive] = useState(false); const [checkout, setCheckout] = useState(false); const [order, setOrder] = useState<Order | null>(null);
-  const [form, setForm] = useState({ customerName:'', email:'', address:'', payment:'demo' });
-  const subtotal = cart.reduce((s,item) => s + (products.find(p => p.id === item.productId)?.price || 0)*item.quantity, 0);
-  const applyCode = () => { if (coupon.toUpperCase().trim() === 'COCIO10') { setCouponActive(true); toast('Cute! COCIO10 discount applied ♡'); } else toast('That code isn’t valid. Try COCIO10!', true); };
-  const place = (e: FormEvent) => { e.preventDefault(); if (!cart.length) return; const result = placeOrder({...form, discount: couponActive ? .1 : 0}); setOrder(result);setCheckout(false);toast('Demo order placed successfully!'); };
-  if (order) return <div className="container order-confirmed page-section"><div className="order-confirmed-icon"><CheckCircle2 size={54}/></div><span className="eyebrow">✳ GOOD THINGS HAPPEN</span><h1>You're officially<br/><em>too cute!</em></h1><p>Your demo order <b>{order.id}</b> is confirmed in this browser. No payment was taken and no shipment will occur.</p><div className="order-confirmed-total">TOTAL <strong>{money(order.total)}</strong></div><Link to="/shop" className="btn btn-black">Keep exploring <ArrowRight size={18}/></Link></div>;
-  return <div className="container cart-page page-section"><div className="cart-heading"><span className="eyebrow">✳ YOUR COLLECTION IN PROGRESS</span><h1>Your happy <em>little bag.</em></h1><p>Good taste looks good on you ♡</p></div>{cart.length ? <div className="cart-grid"><div className="cart-items"><div className="cart-column-head"><span>YOUR GOODIES ({cart.reduce((s,i) => s+i.quantity,0)})</span><Link to="/shop">Keep shopping <ArrowRight size={15}/></Link></div>{cart.map(item => {const p=products.find(x => x.id === item.productId); if (!p)return null; return <div className="cart-line" key={item.productId}><img src={p.image} alt={p.name} style={{background:p.color}}/><div className="cart-line-details"><span className="cart-collection">{p.category === 'digital' ? 'DIGITAL DOWNLOAD' : p.collection.toUpperCase()}</span><Link to={`/shop/${p.slug}`} className="cart-item-title">{p.name}</Link><strong>{money(p.price)}</strong><div className="cart-line-bottom"><div className="qty-control"><button aria-label={`Decrease ${p.name} quantity`} onClick={() => setCartQuantity(p.id,item.quantity-1)}><Minus size={15}/></button><span>{item.quantity}</span><button aria-label={`Increase ${p.name} quantity`} onClick={() => setCartQuantity(p.id,item.quantity+1)}><Plus size={15}/></button></div><button className="remove-btn" onClick={() => removeCart(p.id)}><Trash2 size={16}/> Remove</button></div></div></div>; })}</div><div className="cart-summary"><div className="summary-top"><span>♡ THE ORDER DETAILS</span><Sparkles size={22}/></div><h2>Almost yours!</h2><div className="summary-row"><span>Subtotal</span><strong>{money(subtotal)}</strong></div>{couponActive && <div className="summary-row discount-row"><span>COCIO10 discount</span><strong>-{money(subtotal*.1)}</strong></div>}<div className="summary-row"><span>Shipping</span><span>Calculated later*</span></div><div className="coupon-row"><input placeholder="Have a code?" aria-label="Promo code" value={coupon} onChange={e => setCoupon(e.target.value)}/><button onClick={applyCode}>Apply</button></div><div className="summary-total"><span>Total</span><strong>{money(Math.round(subtotal*(couponActive ? .9 : 1)))}</strong></div>{!checkout ? <button className="btn btn-black summary-checkout" onClick={() => setCheckout(true)}>Continue to checkout <ArrowRight size={18}/></button> : <form className="checkout-form" onSubmit={place}><label>Your name<input value={form.customerName} required onChange={e=>setForm({...form,customerName:e.target.value})} placeholder="Your full name" /></label><label>Email address<input value={form.email} type="email" required onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@email.com" /></label><label>Shipping address / note<textarea value={form.address} required onChange={e=>setForm({...form,address:e.target.value})} placeholder="Your shipping address, or type DIGITAL ONLY" rows={3}/></label><div className="demo-payment-notice"><LockKeyhole size={18}/><span>Demo checkout only. No payment collected. Connect a gateway before accepting orders.</span></div><button type="submit" className="btn btn-black summary-checkout">Place demo order <ArrowRight size={18}/></button><button type="button" className="back-checkout" onClick={()=>setCheckout(false)}>Back to summary</button></form>}<div className="summary-foot"><LockKeyhole size={16}/> DEMO ONLY — NO REAL PAYMENT OR SHIPPING</div></div></div> : <div className="cart-empty"><div className="cart-empty-graphic"><ShoppingBag size={82}/><span>♥</span></div><h2>Your bag is feeling lonely.</h2><p>Let's find some cute things to keep it company.</p><Link className="btn btn-purple" to="/shop">Discover goodies <ArrowRight size={18}/></Link></div>}<Link to="/shop" className="cart-back"><ArrowLeft size={17}/> Continue browsing</Link></div>;
+  const { cart, setCartQuantity, removeCart, placeOrder } = useStore();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [coupon, setCoupon] = useState('');
+  const [couponActive, setCouponActive] = useState(false);
+  const [checkout, setCheckout] = useState(false);
+  const [country, setCountry] = useState('');
+  const [fx, setFx] = useState<FxQuote>({ usdToIdr: DEMO_USD_TO_IDR, source:'demo', asOf:'', fetchedAt:0 });
+  const [fxLoading, setFxLoading] = useState(false);
+  const [fxRefresh, setFxRefresh] = useState(0);
+  const [form, setForm] = useState({ customerName:'', email:'', phone:'', address:'' });
+  const hasPhysicalItems = cart.some(item => products.find(p => p.id===item.productId)?.category === 'physical');
+  const international = isInternational(country);
+  const currency = international ? 'USD' : 'IDR';
+  const subtotalIDR = cart.reduce((sum, item) => sum + (products.find(p => p.id === item.productId)?.price || 0)*item.quantity, 0);
+  const discountedIDR = Math.round(subtotalIDR * (couponActive ? .9 : 1));
+  const payable = quotePrice(discountedIDR, country, fx.usdToIdr);
+  const fmt = (idr: number) => showCurrency(quotePrice(idr, country, fx.usdToIdr), currency);
+
+  useEffect(() => {
+    if (!international) return;
+    const controller = new AbortController();
+    setFxLoading(true);
+    loadUsdIdr(controller.signal, fxRefresh > 0).then(rate => { if (!controller.signal.aborted) setFx(rate); })
+      .catch(() => { /* aborted unmount */ })
+      .finally(() => { if (!controller.signal.aborted) setFxLoading(false); });
+    return () => controller.abort();
+  }, [international, fxRefresh]);
+
+  function applyCode() {
+    if (coupon.toUpperCase().trim() === 'COCIO10') {
+      setCouponActive(true);
+      toast('Promo COCIO10 applied! Your cart just got cuter.');
+    } else toast('That code is not valid. Try COCIO10!', true);
+  }
+  function place(e: FormEvent) {
+    e.preventDefault();
+    if (!cart.length || !country || fxLoading) return;
+    const result = placeOrder({ ...form, country, discount: couponActive ? .1 : 0,
+      fxRate: international ? fx.usdToIdr : 1,
+      fxSource: international ? fx.source : 'none', fxAsOf: international ? fx.asOf : '',
+    });
+    navigate(`/payment/${result.id}`);
+  }
+  return <div className="container cart-page page-section">
+    <div className="cart-heading"><span className="eyebrow">YOUR COLLECTION IN PROGRESS</span><h1>Your happy <em>little bag.</em></h1><p>Good taste looks good on you ♡</p></div>
+    {cart.length ? <div className="cart-grid">
+      <div className="cart-items">
+        <div className="cart-column-head"><span>YOUR GOODIES ({cart.reduce((s,i)=>s+i.quantity,0)})</span><Link to="/shop">Keep shopping <ArrowRight size={15}/></Link></div>
+        {cart.map(item => { const p=products.find(x => x.id===item.productId); if (!p) return null;
+          return <div className="cart-line" key={item.productId}>
+            <img src={p.image} alt={p.name} style={{background:p.color}}/>
+            <div className="cart-line-details"><span className="cart-collection">{p.category==='digital' ? 'DIGITAL DOWNLOAD' : p.collection.toUpperCase()}</span>
+              <Link to={`/shop/${p.slug}`} className="cart-item-title">{p.name}</Link>
+              <strong>{country ? fmt(p.price) : money(p.price)}</strong>
+              {international && <small className="conversion-hint">International price = IDR ÷ FX × 3</small>}
+              <div className="cart-line-bottom"><div className="qty-control"><button aria-label={`Decrease ${p.name} quantity`} onClick={()=>setCartQuantity(p.id,item.quantity-1)}><Minus size={15}/></button><span>{item.quantity}</span><button aria-label={`Increase ${p.name} quantity`} onClick={()=>setCartQuantity(p.id,item.quantity+1)}><Plus size={15}/></button></div><button className="remove-btn" onClick={()=>removeCart(p.id)}><Trash2 size={16}/> Remove</button></div>
+            </div>
+          </div>;
+        })}
+        <div className="cart-reassurance"><Globe2 size={20}/><div><b>Your world, your currency.</b><p>Choose a destination to see local or international prices before proceeding.</p></div></div>
+      </div>
+      <aside className="cart-summary">
+        <div className="summary-top"><span>THE ORDER DETAILS</span><span className="simple-circle" aria-hidden="true"/></div>
+        <h2>Almost yours!</h2>
+        <div className="country-picker"><label htmlFor="checkout-country"><Globe2 size={16}/> Shipping / billing country <span className="required-dot">*</span></label>
+          <select required id="checkout-country" value={country} onChange={e=>{setCountry(e.target.value);setCheckout(false);}}>
+            <option value="">Select your country first</option>
+            {countries.map(([code,name])=><option key={code} value={code}>{name}</option>)}
+          </select>
+          {country && <span className="country-note">{international ? 'International order · prices displayed in USD' : 'Indonesia order · prices displayed in IDR'}</span>}
+        </div>
+        <div className="summary-row"><span>Subtotal</span><strong>{fmt(subtotalIDR)}</strong></div>
+        {couponActive && <div className="summary-row discount-row"><span>COCIO10 discount (10%)</span><strong>-{fmt(subtotalIDR-discountedIDR)}</strong></div>}
+        <div className="summary-row"><span>Shipping</span><span>Quoted separately*</span></div>
+        {international && <div className="fx-note"><div className="fx-note-top"><strong>{fxLoading ? 'Fetching USD / IDR rate…' : fx.source === 'api' ? 'Latest published USD / IDR rate' : 'Demo FX estimate — API unavailable'}</strong>
+            <button type="button" aria-label="Refresh USD to IDR exchange rate" title="Refresh rate" onClick={()=>setFxRefresh(v=>v+1)} disabled={fxLoading}><RefreshCw size={15} className={fxLoading ? 'fx-spinning' : ''}/></button></div>
+            <div className="fx-rate">1 USD = {money(fx.usdToIdr)} IDR</div>
+            <p>International price = IDR ÷ {fx.usdToIdr.toLocaleString('en-US')} × {INTERNATIONAL_MULTIPLIER}. Daily indicative FX, not a bank's live settlement rate.</p>
+            {fx.source==='api' && <span className="fx-asof">Rate published: {fx.asOf}</span>}
+            <a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer" className="fx-attribution">Rates by Exchange Rate API ↗</a>
+          </div>}
+        <div className="coupon-row"><input placeholder="Have a code?" aria-label="Promo code" value={coupon} onChange={e=>setCoupon(e.target.value)}/><button onClick={applyCode}>Apply</button></div>
+        <div className="summary-total"><span>Estimated total</span><strong>{showCurrency(payable,currency)}</strong></div>
+        <div className="shipping-disclaimer"><Info size={16}/><span>*Shipping, customs and payment fees are not included; confirm applicable charges with COCIOCO before paying.</span></div>
+        {!checkout ? <button className="btn btn-black summary-checkout" disabled={!country || fxLoading} onClick={()=>setCheckout(true)}>{!country ? 'Choose country to continue' : 'Continue to checkout'} <ArrowRight size={18}/></button>
+        : <form className="checkout-form" onSubmit={place}>
+          <div className="checkout-step-heading"><CheckCircle2 size={18}/> Delivering to {countryName(country)}</div>
+          <label>Full name<input value={form.customerName} required maxLength={100} onChange={e=>setForm({...form,customerName:e.target.value})} placeholder="Your full name" /></label>
+          <label>Email address<input value={form.email} type="email" required maxLength={150} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@email.com" /></label>
+          <label>WhatsApp number<input value={form.phone} type="tel" required maxLength={30} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="e.g. +62 812…" /></label>
+          <label>{hasPhysicalItems ? 'Delivery address (required)' : 'Address / order note (optional)'}<textarea value={form.address} required={hasPhysicalItems} onChange={e=>setForm({...form,address:e.target.value})} placeholder={hasPhysicalItems ? 'Street, city, postal code, country' : 'Anything you want us to know'} rows={3}/></label>
+          <div className="checkout-route-note"><LockKeyhole size={18}/><span>Next: {international ? 'PayPal transfer instructions (USD)' : 'Indonesian bank transfer instructions (IDR)'}. Payment proof is sent manually through WhatsApp.</span></div>
+          <button type="submit" className="btn btn-black summary-checkout">Go to payment details <ArrowRight size={18}/></button>
+          <button type="button" className="back-checkout" onClick={()=>setCheckout(false)}>Back to bag summary</button>
+        </form>}
+        <div className="summary-foot"><LockKeyhole size={15}/> PHASE A PREVIEW — NO LIVE PAYMENT VERIFICATION</div>
+      </aside>
+    </div> : <div className="cart-empty"><div className="cart-empty-graphic"><ShoppingBag size={82}/><span>♥</span></div><h2>Your bag is feeling lonely.</h2><p>Let's find some cute things to keep it company.</p><Link className="btn btn-purple" to="/shop">Discover goodies <ArrowRight size={18}/></Link></div>}
+    <Link to="/shop" className="cart-back"><ArrowLeft size={17}/> Continue browsing</Link>
+  </div>;
 }
