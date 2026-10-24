@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 700" role="img" aria-label="COCIOCO original product illustration"><defs>
+<filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="19" stdDeviation="16" flood-color="#50376b" flood-opacity=".21"/></filter>
+<filter id="soft"><feGaussianBlur stdDeviation="10"/></filter>
+<linearGradient id="lilac" x2="1" y2="1"><stop stop-color="#aa80eb"/><stop offset="1" stop-color="#6d46b8"/></linearGradient>
+<linearGradient id="pink" x2="1" y2="1"><stop stop-color="#ffc5e8"/><stop offset=".55" stop-color="#ff82ca"/><stop offset="1" stop-color="#e566bb"/></linearGradient>
+<linearGradient id="lime" x2="1" y2="1"><stop stop-color="#f7ffbb"/><stop offset="1" stop-color="#c8e863"/></linearGradient>
+<pattern id="check" width="76" height="76" patternUnits="userSpaceOnUse"><rect width="76" height="76" fill="#f9b3dd"/><rect width="38" height="38" fill="#ab8be4"/><rect x="38" y="38" width="38" height="38" fill="#ab8be4"/></pattern>
+<pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="2" fill="#7e58c7" opacity=".22"/></pattern>
+</defs>
+<rect width="700" height="700" rx="48" fill="#eed2ff"/><path d="M0 128Q350 310 700 107" stroke="#f5a9d9" stroke-width="90" fill="none" opacity=".7"/><circle cx="360" cy="348" r="277" fill="#f8ecff" opacity=".5"/>
+<g filter="url(#shadow)" transform="rotate(-10 348 357)"><rect x="213" y="104" width="293" height="440" rx="39" fill="url(#lilac)" stroke="#282126" stroke-width="9"/><rect x="236" y="135" width="249" height="377" rx="24" fill="#b697e9" stroke="#f7e6ff" stroke-width="7"/><path d="M255 169h208v136q-97 110-208 0Z" fill="#ffe1f2" stroke="#282126" stroke-width="6"/><path d="M359 208c-39-50-111-4-72 46l73 62 75-62c36-53-33-95-76-46Z" fill="#ff8acb" stroke="#312631" stroke-width="5"/><rect x="259" y="375" width="205" height="106" rx="20" fill="#e5f596" stroke="#282126" stroke-width="5"/><text x="361" y="418" fill="#7c5ac4" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="24">SWEET</text><text x="361" y="451" fill="#7c5ac4" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="24">ESCAPE ♡</text></g>
+<path d="M342 111Q320 36 387 35T454 111" fill="none" stroke="#eeb7e6" stroke-width="28"/><path d="M342 111Q320 36 387 35T454 111" fill="none" stroke="#2d2232" stroke-width="4" stroke-dasharray="8 10"/>
+<path transform="translate(137 373) scale(0.9)" d="M0 -42 11 -13 42 0 11 12 0 42 -11 12 -42 0 -11 -13Z" fill="#fff" stroke="#27212c" stroke-width="4" stroke-linejoin="round"/><path transform="translate(577 187) scale(0.9)" d="M0 -24 7 -7 24 0 7 7 0 24 -7 7 -24 0 -7 -7Z" fill="#d4ed79" stroke="#282126" stroke-width="3" stroke-linejoin="round"/><path transform="translate(542 569) scale(0.65)" d="M0 -24 7 -7 24 0 7 7 0 24 -7 7 -24 0 -7 -7Z" fill="#ff93c9" stroke="#282126" stroke-width="3" stroke-linejoin="round"/>
+</svg>
