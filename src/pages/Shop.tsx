@@ -15,7 +15,16 @@ export default function Shop() {
   const onlyFavorites = params.get('favorites') === '1';
   const changeCategory = (c: string) => { const p = new URLSearchParams(params); if (c === 'all') p.delete('category'); else p.set('category', c); p.delete('favorites'); setParams(p); };
   const listed = useMemo(() => {
-    let result = products.filter(p => (category === 'all' || p.category === category) && (!onlyFavorites || wishlist.includes(p.id)) && `${p.name} ${p.collection} ${p.description}`.toLowerCase().includes(query.toLowerCase()));
+  
+let result = products.filter(p =>
+  p.published !== false &&
+  (category === 'all' || p.category === category) &&
+  (!onlyFavorites || wishlist.includes(p.id)) &&
+  `${p.name} ${p.collection} ${p.description}`
+    .toLowerCase()
+    .includes(query.toLowerCase())
+);
+    
     if (sort === 'low') result = [...result].sort((a,b) => a.price - b.price);
     if (sort === 'high') result = [...result].sort((a,b) => b.price - a.price);
     if (sort === 'name') result = [...result].sort((a,b) => a.name.localeCompare(b.name));
