@@ -1,40 +1,50 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { CartItem, CreateOrderInput, CustomPriceOverride, CustomSelection, CustomTypeId, FulfillmentStatus, GivingArticle, Order, PaymentSettings, Penalty, Task, TaskStatus, User } from './types';
+import type { Product, CartItem, CreateOrderInput, CustomPriceOverride, CustomSelection, CustomTypeId, FulfillmentStatus, GivingArticle, Order, PaymentSettings, Penalty, Task, TaskStatus, User } from './types';
 import { quotePrice } from './pricing';
-import { initialTasks } from './data';
+import { initialTasks, products as sampleProducts } from './data';
+import { liveConfigured } from './lib/backend';
+import { LiveStoreProvider } from './live-store';
 import { cartTotal, resolveCartLine } from './custom';
 import { initialGivingArticles } from './giving';
 
-type ActionResult = { ok: boolean; message: string };
-type DemoState = { user: User | null; tasks: Task[]; penalties: Penalty[]; cart: CartItem[]; wishlist: string[]; orders: Order[]; paymentSettings: PaymentSettings; customPrices:Record<string,CustomPriceOverride>;givingArticles:GivingArticle[] };
-type CreateTask = { title: string; category: string; description: string; reward: number; brief: string;orderId?:string };
-type Store = DemoState & {
+export type ActionResult = { ok: boolean; message: string };
+export type DemoState = { user: User | null; tasks: Task[]; penalties: Penalty[]; cart: CartItem[]; wishlist: string[]; orders: Order[]; paymentSettings: PaymentSettings; customPrices:Record<string,CustomPriceOverride>;givingArticles:GivingArticle[] };
+export type CreateTask = { title: string; category: string; description: string; reward: number; brief: string;orderId?:string };
+export type Store = DemoState & {
+  backendMode:'demo'|'live';loading?:boolean;error?:string;products:Product[];
+  creatorLeaders?:Array<{id:string;alias:string;projects:number;earnings:number;earningsPublic:boolean}>;
+  collectorLeaders?:Array<{id:string;alias:string;orders:number;points:number}>;
+  designerApplicants?:Array<{id:string;name:string;email:string;designer_requested:boolean;designer_approved:boolean;role:string}>;
+  refresh?:()=>Promise<void>;
+  approveDesigner?:(id:string)=>Promise<ActionResult>;
+  upsertProduct?:(product:Product & {published?:boolean;digitalAssetPath?:string})=>Promise<ActionResult>;
+  markPaid?:(id:string)=>Promise<ActionResult>;
   loginDemo: (role: 'designer' | 'admin') => void;
   registerDemo: (name: string, email: string) => void;
   logout: () => void;
-  claimTask: (id: string) => ActionResult;
-  submitTask: (id: string, file: File) => ActionResult;
+  claimTask: (id: string) => ActionResult | Promise<ActionResult>;
+  submitTask: (id: string, file: File) => ActionResult | Promise<ActionResult>;
   addCart: (id: string, quantity?: number) => void;
   setCartQuantity: (id: string, qty: number) => void;
   addCustomToCart: (selection: CustomSelection, quantity:number) => void;
   removeCart: (id: string) => void;
   toggleWishlist: (id: string) => void;
-  placeOrder: (data: CreateOrderInput) => Order;
-  updatePaymentSettings: (data: PaymentSettings) => void;
-  setOrderPaymentStatus: (id: string, status: Order['paymentStatus']) => void;
-  updateOrderTracking: (id:string,status:FulfillmentStatus,note:string,courier:string,trackingNumber:string)=>ActionResult;
-  upsertGivingArticle: (article:GivingArticle)=>ActionResult;
-  deleteGivingArticle: (id:string)=>ActionResult;
-  updateCustomPrice: (id:CustomTypeId,values:CustomPriceOverride)=>ActionResult;
+  placeOrder: (data: CreateOrderInput) => Order | Promise<Order>;
+  updatePaymentSettings: (data: PaymentSettings) => void | Promise<void>;
+  setOrderPaymentStatus: (id: string, status: Order['paymentStatus']) => void | Promise<void>;
+  updateOrderTracking: (id:string,status:FulfillmentStatus,note:string,courier:string,trackingNumber:string)=>ActionResult | Promise<ActionResult>;
+  upsertGivingArticle: (article:GivingArticle,confirmed?:boolean)=>ActionResult | Promise<ActionResult>;
+  deleteGivingArticle: (id:string)=>ActionResult | Promise<ActionResult>;
+  updateCustomPrice: (id:CustomTypeId,values:CustomPriceOverride)=>ActionResult | Promise<ActionResult>;
   setCreatorEarningsVisibility:(visible:boolean)=>void;
-  createTask: (task: CreateTask) => ActionResult;
-  setTaskStatus: (id: string, status: TaskStatus) => void;
-  resetPenalties: (userId?: string) => void;
+  createTask: (task: CreateTask) => ActionResult | Promise<ActionResult>;
+  setTaskStatus: (id: string, status: TaskStatus) => void | Promise<void>;
+  resetPenalties: (userId?: string) => void | Promise<void>;
   simulateExpiry: (id: string) => void;
   resetDemo: () => void;
 };
-const StoreContext = createContext<Store | null>(null);
+export const StoreContext = createContext<Store | null>(null);
 const KEY = 'cocioco.shop.demo.v1';
 // The mobile number is provided by the shop owner. Bank/PayPal destinations MUST be filled in by them.
 const defaultPaymentSettings: PaymentSettings = { bankName: '', accountNumber: '', accountHolder: '', paypalEmail: '', whatsappNumber: '6282317422632' };
@@ -50,7 +60,7 @@ function load(): DemoState {
   return blank();
 }
 const uid = () => typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function DemoStoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<DemoState>(load);
   const { user, tasks, penalties, cart, wishlist, orders, paymentSettings, customPrices, givingArticles } = state;
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage unavailable */ } }, [state]);
@@ -204,7 +214,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const resetPenalties = useCallback((userId?: string) => setState(s => ({ ...s, penalties: userId ? s.penalties.filter(p => p.userId !== userId) : [] })), []);
   const resetDemo = useCallback(() => setState(blank()), []);
 
-  const value:Store={ user,tasks,penalties,cart,wishlist,orders,paymentSettings,customPrices,givingArticles,loginDemo,registerDemo,logout,claimTask,submitTask,addCart,addCustomToCart,setCartQuantity,removeCart,toggleWishlist,placeOrder,updatePaymentSettings,setOrderPaymentStatus,updateOrderTracking,upsertGivingArticle,deleteGivingArticle,updateCustomPrice,setCreatorEarningsVisibility,createTask,setTaskStatus,resetPenalties,simulateExpiry,resetDemo };
+  const value:Store={backendMode:'demo',products:sampleProducts, user,tasks,penalties,cart,wishlist,orders,paymentSettings,customPrices,givingArticles,loginDemo,registerDemo,logout,claimTask,submitTask,addCart,addCustomToCart,setCartQuantity,removeCart,toggleWishlist,placeOrder,updatePaymentSettings,setOrderPaymentStatus,updateOrderTracking,upsertGivingArticle,deleteGivingArticle,updateCustomPrice,setCreatorEarningsVisibility,createTask,setTaskStatus,resetPenalties,simulateExpiry,resetDemo };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
+export function StoreProvider({children}:{children:ReactNode}) {return liveConfigured?<LiveStoreProvider>{children}</LiveStoreProvider>:<DemoStoreProvider>{children}</DemoStoreProvider>;}
 export function useStore() { const ctx = useContext(StoreContext); if (!ctx) throw new Error('StoreProvider missing'); return ctx; }

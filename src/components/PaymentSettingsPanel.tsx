@@ -1,22 +1,23 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { CreditCard, Globe2, Info, MessageCircleHeart, Save, ShieldAlert } from 'lucide-react';
 import { useStore } from '../store';
 import { useToast } from './Toast';
 
 export default function PaymentSettingsPanel() {
-  const { paymentSettings, updatePaymentSettings } = useStore();
+  const { paymentSettings, updatePaymentSettings,backendMode } = useStore();
   const toast = useToast();
   const [draft, setDraft] = useState(paymentSettings);
-  function save(event: FormEvent) {
+  useEffect(()=>setDraft(paymentSettings),[paymentSettings]);
+  async function save(event: FormEvent) {
     event.preventDefault();
     if (draft.paypalEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(draft.paypalEmail)) return toast('Enter a valid PayPal email or leave it empty.',true);
     if (!/^\+?[0-9\s()-]{9,25}$/.test(draft.whatsappNumber)) return toast('Enter a valid WhatsApp number.',true);
-    updatePaymentSettings(draft);
-    toast('Payment settings saved in this browser. Not shared with visitors.');
+    try{await updatePaymentSettings(draft);toast(backendMode==='live'?'Payment details saved to COCIOCO database.':'Payment details saved in this browser.');}
+    catch(e){toast(e instanceof Error?e.message:'Could not save payment settings',true);}
   }
   return <div className="admin-payment-settings">
     <div className="dash-section-title"><div><span className="eyebrow">STORE CONFIGURATION</span><h2>Payment <em>details.</em></h2></div><CreditCard size={29}/></div>
-    <div className="payment-settings-warning"><ShieldAlert size={22}/><div><strong>Local demo settings only</strong><p>Changes are stored in this browser only. They will NOT automatically appear to customers on other devices. Phase B will securely publish official payment instructions from a shared database. Do not accept live orders yet.</p></div></div>
+    <div className="payment-settings-warning"><ShieldAlert size={22}/><div><strong>{backendMode==='live'?'Official bank and PayPal details':'Local demo settings only'}</strong><p>{backendMode==='live'?'These destinations are displayed to customers after checkout. Enter ONLY verified official payment accounts. Payments are manually verified in Orders.':'Changes are stored in this browser only and are not shared with visitors.'}</p></div></div>
     <form onSubmit={save} className="payment-settings-form">
       <div className="payment-settings-section"><div className="payment-settings-section-head"><CreditCard size={22}/><div><h3>Indonesia · Bank Transfer</h3><p>Shown to shoppers selecting Indonesia.</p></div></div>
         <label>Bank name<input placeholder="e.g. BCA, Mandiri, BNI" value={draft.bankName} onChange={e=>setDraft({...draft,bankName:e.target.value})} maxLength={80}/></label>
@@ -29,8 +30,8 @@ export default function PaymentSettingsPanel() {
       <div className="payment-settings-section"><div className="payment-settings-section-head"><MessageCircleHeart size={22}/><div><h3>Confirmation via WhatsApp</h3><p>Prefilled order confirmation messages use this number.</p></div></div>
         <label>WhatsApp number with country code<input required inputMode="tel" value={draft.whatsappNumber} onChange={e=>setDraft({...draft,whatsappNumber:e.target.value})} placeholder="6282317422632" maxLength={25}/></label>
       </div>
-      <button type="submit" className="btn btn-black payment-save-btn"><Save size={18}/> Save demo payment settings</button>
-      <div className="settings-tip"><Info size={18}/> For real transactions in Phase B, payment details and order amounts must be read from an authenticated backend with role-based admin access.</div>
+      <button type="submit" className="btn btn-black payment-save-btn"><Save size={18}/> Save payment settings</button>
+      <div className="settings-tip"><Info size={18}/> {backendMode==='live'?'Never mark payment verified until bank or PayPal receipt is confirmed.':'Live payments require an authenticated backend and owner role.'}</div>
     </form>
   </div>;
 }

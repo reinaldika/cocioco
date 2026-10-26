@@ -1,9 +1,12 @@
+import {liveConfigured} from '../lib/backend';
+import LiveAuth from './LiveAuth';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Heart, LockKeyhole, Sparkles, UserRound } from 'lucide-react';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
 export default function Auth() {
+  if(liveConfigured)return <LiveAuth/>;
   const { user, loginDemo, registerDemo } = useStore(); const toast=useToast(); const navigate=useNavigate(); const [params] = useSearchParams();
   const [name,setName]=useState(''); const [email,setEmail]=useState('');
   const destination = params.get('redirect'); const next = destination?.startsWith('/') && !destination.startsWith('//') ? destination : '/dashboard';

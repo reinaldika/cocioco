@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Globe2, Info, LockKeyhole, Minus, Plus, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react';
-import { money, products } from '../data';
+import { money } from '../data';
 import { cartTotal, isPhysicalLine, resolveCartLine } from '../custom';
 import { useStore } from '../store';
 import { useToast } from '../components/Toast';
@@ -9,9 +9,12 @@ import { countries, countryName, isInternational } from '../countries';
 import { DEMO_USD_TO_IDR, INTERNATIONAL_MULTIPLIER, loadUsdIdr, quotePrice, showCurrency, type FxQuote } from '../pricing';
 
 export default function Cart() {
-  const { cart, setCartQuantity, removeCart, placeOrder,customPrices } = useStore();
+  const { cart, setCartQuantity, removeCart, placeOrder,customPrices,products,user,backendMode } = useStore();
   const toast = useToast();
   const navigate = useNavigate();
+  const [placing,setPlacing]=useState(false);
+  const [checkoutToken,setCheckoutToken]=useState(()=>crypto.randomUUID());
+  const [fxError,setFxError]=useState('');
   const [coupon, setCoupon] = useState('');
   const [couponActive, setCouponActive] = useState(false);
   const [checkout, setCheckout] = useState(false);
@@ -22,10 +25,10 @@ export default function Cart() {
   const [form, setForm] = useState({ customerName:'', email:'', phone:'', address:'' });
   const [clubOptIn,setClubOptIn]=useState(false);
   const [collectorAlias,setCollectorAlias]=useState('');
-  const hasPhysicalItems = cart.some(isPhysicalLine);
+  const hasPhysicalItems = cart.some(i=>isPhysicalLine(i,products));
   const international = isInternational(country);
   const currency = international ? 'USD' : 'IDR';
-  const subtotalIDR = cartTotal(cart,customPrices);
+  const subtotalIDR = cartTotal(cart,customPrices,products);
   const discountedIDR = Math.round(subtotalIDR * (couponActive ? .9 : 1));
   const payable = quotePrice(discountedIDR, country, fx.usdToIdr);
   const fmt = (idr: number) => showCurrency(quotePrice(idr, country, fx.usdToIdr), currency);
@@ -34,33 +37,39 @@ export default function Cart() {
     if (!international) return;
     const controller = new AbortController();
     setFxLoading(true);
-    loadUsdIdr(controller.signal, fxRefresh > 0).then(rate => { if (!controller.signal.aborted) setFx(rate); })
-      .catch(() => { /* aborted unmount */ })
+    loadUsdIdr(controller.signal, fxRefresh > 0).then(rate => { if (!controller.signal.aborted) {setFx(rate);setFxError('');} })
+      .catch(() => {if(!controller.signal.aborted)setFxError('Live FX service unavailable. International checkout is temporarily disabled.');})
       .finally(() => { if (!controller.signal.aborted) setFxLoading(false); });
     return () => controller.abort();
   }, [international, fxRefresh]);
 
   function applyCode() {
+    if(backendMode==='live'){toast('Promo codes are not yet activated for verified live orders.',true);return;}
     if (coupon.toUpperCase().trim() === 'COCIO10') {
       setCouponActive(true);
       toast('Promo COCIO10 applied! Your cart just got cuter.');
     } else toast('That code is not valid. Try COCIO10!', true);
   }
-  function place(e: FormEvent) {
+  async function place(e: FormEvent) {
     e.preventDefault();
-    if (!cart.length || !country || fxLoading) return;
-    const result = placeOrder({ ...form, country, discount: couponActive ? .1 : 0,
+    if (!cart.length || !country || fxLoading || placing) return;
+    if(backendMode==='live'&&!user){navigate('/auth?redirect=%2Fcart');return;}
+    if(backendMode==='live'&&international&&(fx.source!=='api'||fxError)){toast('An updated FX quote is required to place an international order.',true);return;}
+    setPlacing(true);
+    try{const result = await placeOrder({ ...form, email:backendMode==='live'?user?.email||form.email:form.email,country,checkoutToken, discount: couponActive ? .1 : 0,
       fxRate: international ? fx.usdToIdr : 1,
       fxSource: international ? fx.source : 'none', fxAsOf: international ? fx.asOf : '',collectorAlias,leaderboardOptIn:clubOptIn,
     });
+    setCheckoutToken(crypto.randomUUID());
     navigate(`/payment/${result.id}`);
+    }catch(e){toast(e instanceof Error?e.message:'Unable to place order',true);}finally{setPlacing(false);}
   }
   return <div className="container cart-page page-section">
     <div className="cart-heading"><span className="eyebrow">YOUR COLLECTION IN PROGRESS</span><h1>Your happy <em>little bag.</em></h1><p>Good taste looks good on you ♡</p></div>
     {cart.length ? <div className="cart-grid">
       <div className="cart-items">
         <div className="cart-column-head"><span>YOUR GOODIES ({cart.reduce((s,i)=>s+i.quantity,0)})</span><Link to="/shop">Keep shopping <ArrowRight size={15}/></Link></div>
-        {cart.map(item => {const line=resolveCartLine(item,customPrices);if(!line)return null;return <div className="cart-line" key={line.key}>
+        {cart.map(item => {const line=resolveCartLine(item,customPrices,products);if(!line)return null;return <div className="cart-line" key={line.key}>
           <img src={line.image} alt={line.name} style={{background:item.custom?'#e6d2ff':'#f6dcf0'}}/>
           <div className="cart-line-details"><span className="cart-collection">{line.category==='custom'?'CUSTOM STUDIO':line.category==='digital'?'DIGITAL DOWNLOAD':'COCIOCO COLLECTION'}</span>
             {line.category==='custom'?<Link to="/custom" className="cart-item-title">{line.name}</Link>:<Link to={`/shop/${products.find(p=>p.id===item.productId)?.slug||''}`} className="cart-item-title">{line.name}</Link>}
@@ -86,6 +95,7 @@ export default function Cart() {
         <div className="summary-row"><span>Subtotal</span><strong>{fmt(subtotalIDR)}</strong></div>
         {couponActive && <div className="summary-row discount-row"><span>COCIO10 discount (10%)</span><strong>-{fmt(subtotalIDR-discountedIDR)}</strong></div>}
         <div className="summary-row"><span>Shipping</span><span>Quoted separately*</span></div>
+        {fxError&&<p className="cx-form-error">{fxError}</p>}
         {international && <div className="fx-note"><div className="fx-note-top"><strong>{fxLoading ? 'Fetching USD / IDR rate…' : fx.source === 'api' ? 'Latest published USD / IDR rate' : 'Demo FX estimate — API unavailable'}</strong>
             <button type="button" aria-label="Refresh USD to IDR exchange rate" title="Refresh rate" onClick={()=>setFxRefresh(v=>v+1)} disabled={fxLoading}><RefreshCw size={15} className={fxLoading ? 'fx-spinning' : ''}/></button></div>
             <div className="fx-rate">1 USD = {money(fx.usdToIdr)} IDR</div>
@@ -100,15 +110,15 @@ export default function Cart() {
         : <form className="checkout-form" onSubmit={place}>
           <div className="checkout-step-heading"><CheckCircle2 size={18}/> Delivering to {countryName(country)}</div>
           <label>Full name<input value={form.customerName} required maxLength={100} onChange={e=>setForm({...form,customerName:e.target.value})} placeholder="Your full name" /></label>
-          <label>Email address<input value={form.email} type="email" required maxLength={150} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@email.com" /></label>
+          <label>Email address<input value={backendMode==='live'?user?.email||'':form.email} type="email" required readOnly={backendMode==='live'} maxLength={150} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@email.com" /></label>
           <label>WhatsApp number<input value={form.phone} type="tel" required maxLength={30} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="e.g. +62 812…" /></label>
           <label>{hasPhysicalItems ? 'Delivery address (required)' : 'Address / order note (optional)'}<textarea value={form.address} required={hasPhysicalItems} onChange={e=>setForm({...form,address:e.target.value})} placeholder={hasPhysicalItems ? 'Street, city, postal code, country' : 'Anything you want us to know'} rows={3}/></label>
           <div className="cx-club-checkbox"><label><input type="checkbox" checked={clubOptIn} onChange={e=>setClubOptIn(e.target.checked)}/><span>Join the optional <strong>COCIOCO Collectors Club</strong> leaderboard (verified orders only, no spending amounts shown).</span></label>{clubOptIn&&<input placeholder="Public collector nickname" required maxLength={24} value={collectorAlias} onChange={e=>setCollectorAlias(e.target.value.replace(/[^a-zA-Z0-9_.-]/g,''))}/>}</div>
           <div className="checkout-route-note"><LockKeyhole size={18}/><span>Next: {international ? 'PayPal transfer instructions (USD)' : 'Indonesian bank transfer instructions (IDR)'}. Payment proof is sent manually through WhatsApp.</span></div>
-          <button type="submit" className="btn btn-black summary-checkout">Go to payment details <ArrowRight size={18}/></button>
+          <button type="submit" disabled={placing||Boolean(fxError&&international)} className="btn btn-black summary-checkout">{placing?'Securing your order...':'Go to payment details'} <ArrowRight size={18}/></button>
           <button type="button" className="back-checkout" onClick={()=>setCheckout(false)}>Back to bag summary</button>
         </form>}
-        <div className="summary-foot"><LockKeyhole size={15}/> PHASE A PREVIEW — NO LIVE PAYMENT VERIFICATION</div>
+        <div className="summary-foot"><LockKeyhole size={15}/> {backendMode==='live'?'SECURE ORDER RECORD · MANUAL PAYMENT VERIFICATION':'PHASE A PREVIEW — NO LIVE PAYMENT VERIFICATION'}</div>
       </aside>
     </div> : <div className="cart-empty"><div className="cart-empty-graphic"><ShoppingBag size={82}/><span>♥</span></div><h2>Your bag is feeling lonely.</h2><p>Let's find some cute things to keep it company.</p><Link className="btn btn-purple" to="/shop">Discover goodies <ArrowRight size={18}/></Link></div>}
     <Link to="/shop" className="cart-back"><ArrowLeft size={17}/> Continue browsing</Link>

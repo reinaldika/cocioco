@@ -12,9 +12,11 @@ export type Product = {
   description: string;
   includes: string[];
   stock: number;
+  published?:boolean;
+  digitalAssetPath?:string;
 };
 export type TaskStatus = 'available' | 'in_progress' | 'under_review' | 'revision' | 'completed' | 'cancelled';
-export type Submission = { name: string; size: number; submittedAt: number; by: string };
+export type Submission = { name: string; size: number; submittedAt: number; by: string; path?: string };
 export type Task = {
   id: string;
   title: string;
@@ -34,11 +36,14 @@ export type Task = {
   claimedAt?: number;
   deadlineAt?: number;
   submissions: Submission[];
+  assets?: {path:string;name:string}[];
+  payoutStatus?:'pending'|'approved'|'paid';
+  paidAt?:number;
 };
-export type User = { id: string; name: string; email: string; role: 'designer' | 'admin'; joinedAt: number;showEarningsOnLeaderboard?:boolean };
+export type User = { id: string; name: string; email: string; role: 'customer' | 'designer' | 'admin'; joinedAt: number;showEarningsOnLeaderboard?:boolean;designerApproved?:boolean;designerRequested?:boolean };
 export type Penalty = { id: string; userId: string; taskId: string; level: number; hours: number; at: number; until: number | null };
 export type CustomTypeId = 'collection-book' | 'card-holder' | 'keychain' | 'photocard-set';
-export type CustomSelection = { typeId: CustomTypeId;sizeId:string;materialId:string;finishId:string;designService:'upload'|'designer';notes?:string;artworkName?:string };
+export type CustomSelection = { typeId: CustomTypeId;sizeId:string;materialId:string;finishId:string;designService:'upload'|'designer';notes?:string;artworkName?:string;artworkPath?:string };
 export type CustomPriceOverride = { base: number; designFee: number };
 export type CartItem = { productId: string; quantity: number;lineId?:string;custom?:CustomSelection };
 export type OrderLine = {key:string;name:string;image:string;quantity:number;category:'physical'|'digital'|'custom';unitPrice:number;designFee:number;total:number;detail:string;custom?:CustomSelection};
@@ -70,7 +75,7 @@ export type Order = {
   phone: string;
   address: string;
   payment: 'bank_transfer' | 'paypal_manual';
-  paymentStatus: 'awaiting_payment' | 'pending_verification' | 'verified';
+  paymentStatus: 'awaiting_payment' | 'pending_verification' | 'verified' | 'rejected';
 };
 export type PaymentSettings = {
   bankName: string;
@@ -85,6 +90,7 @@ export type CreateOrderInput = {
   phone: string;
   address: string;
   country: string;
+  checkoutToken?: string;
   discount: number;
   fxRate: number;
   fxSource: 'api' | 'demo' | 'none';

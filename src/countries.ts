@@ -14,7 +14,7 @@ export const countries = [
   ['PK','Pakistan'], ['BD','Bangladesh'], ['LK','Sri Lanka'], ['NP','Nepal'],
   ['AR','Argentina'], ['CL','Chile'], ['CO','Colombia'], ['PE','Peru'],
   ['IL','Israel'], ['QA','Qatar'], ['KW','Kuwait'], ['BH','Bahrain'],
-  ['OM','Oman'], ['ID-OTHER','Other / Not listed'],
+  ['OM','Oman'], ['XX','Other / Not listed'],
 ] as const;
 export function countryName(code: string) {return countries.find(([iso])=>iso===code)?.[1] ?? code;}
 export function isInternational(code: string) { return Boolean(code && code !== 'ID'); }

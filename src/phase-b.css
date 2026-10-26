@@ -1,0 +1,30 @@
+/* Phase B connected-account and owner tools. Inherits COCIOCO Y2K palette and responsive system. */
+.cx-customer-account .cx-track-hero{min-height:260px;background:#e4d7ff}
+.cx-customer-account .cx-track-hero>svg{justify-self:center;align-self:center;color:#854ec5}
+.cx-customer-account .cx-account-actions{display:flex;flex-wrap:wrap;gap:10px;margin:25px 0}
+.cx-my-order{margin:16px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:20px}
+.cx-my-order h3{font-family:'DM Sans',sans-serif!important;font-size:25px;margin:10px 0;font-weight:650}
+.cx-my-order p{font-size:13px;color:#625766;line-height:1.65}
+.cx-my-order .cx-account-actions{margin:15px 0 0}
+.cx-account-actions .cx-btn-outline,.cx-admin-designer .cx-btn-outline{background:#fffafc;border:1.5px solid #282828;border-radius:99px;padding:10px 16px;color:#282828;display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:650;text-decoration:none;cursor:pointer}
+.cx-account-actions .cx-btn-outline:hover,.cx-admin-designer .cx-btn-outline:hover{background:#e5f3a4}
+.cx-admin-designer{display:flex;gap:18px;align-items:center;justify-content:space-between;margin:12px 0;padding:20px!important}
+.cx-admin-designer>div:first-child{display:flex;flex-direction:column;gap:7px;overflow-wrap:anywhere}
+.cx-admin-designer>div:first-child strong{font-size:17px;font-weight:650}.cx-admin-designer small,.cx-admin-designer span{font-size:12px;color:#716476}
+.cx-admin-designer .cx-account-actions{display:flex;gap:9px;flex-wrap:wrap}
+.cx-asset-attach{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.cx-admin-products .cx-editor-grid select,.cx-admin-products .cx-editor-grid input,.auth-form select{background:white;border:1.5px solid #a99ea6;border-radius:12px;padding:12px;color:#282828;width:100%;font:inherit}
+.cx-admin-products .cx-editor-grid label{display:flex;flex-direction:column;gap:7px;font-size:12px;font-weight:650}
+.cx-admin-products .cx-editor-grid .cx-publish-check{flex-direction:row;align-items:center}
+.cx-admin-products .cx-editor-grid .cx-publish-check input{width:18px;height:18px}
+.cx-admin-products .cx-admin-story-list{margin-top:20px}
+.cx-admin-products .cx-article-editor{margin:20px 0}
+.cx-admin-products .cx-editor-grid input[type="color"]{height:43px;padding:5px}
+.cx-admin-products .cx-admin-story>div{min-width:0}
+.cx-customer-account .cx-paper-card{min-height:0}
+.cx-activity-state{display:flex;gap:12px;padding:16px;border-radius:16px;background:#fff1d4;border:1px solid #e1ca9d;font-size:13px}
+@media(max-width:740px){.cx-admin-designer{flex-direction:column;align-items:stretch}.cx-customer-account .cx-track-hero>svg{display:none}.cx-my-order .cx-account-actions{gap:7px}.cx-my-order{padding:20px}.cx-admin-products .cx-admin-story-list{gap:13px}}
+@media(prefers-reduced-motion:reduce){.cx-account-actions .cx-btn-outline{transition:none!important}}
+
+.cx-live-error{max-width:1150px;margin:12px auto;padding:14px 18px;background:#fff0d8;border:1.5px solid #b87c44;border-radius:12px;color:#653e26;font-size:13px;line-height:1.6}
+.cx-payment-closed{text-align:center;max-width:640px;min-height:60vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px}.cx-payment-closed>svg{color:#8854c3}.cx-payment-closed>p{max-width:490px;color:#726674;line-height:1.7}.cx-payment-closed h1{font-family:'Fredoka','DM Sans',sans-serif;font-size:clamp(36px,5vw,54px);font-weight:700}.cx-payment-closed .btn{margin-top:4px}

@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Heart, ShoppingBag, WandSparkles, Zap, Clock3, MousePointer2, Palette, HeartHandshake, Trophy, BookOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { products, socials } from '../data';
+import { socials } from '../data';
 import ProductCard from '../components/ProductCard';
 import { Reveal } from '../components/Decor';
 import { useStore } from '../store';
 import TaskCard from '../components/TaskCard';
 
 export default function Home() {
+  const {products}=useStore();
   const { tasks } = useStore();
   return <>
     <section className="container hero-wrap">

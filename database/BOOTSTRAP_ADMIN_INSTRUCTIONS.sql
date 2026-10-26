@@ -1,0 +1,11 @@
+-- AFTER the founder creates an account at cocioco.vercel.app/auth and confirms email:
+-- 1. In Supabase Dashboard -> Authentication -> Users, COPY that exact user's UUID.
+-- 2. Open this file in the SQL Editor of the DEDICATED COCIOCO project.
+-- 3. Replace the UUID placeholder below with that exact account ID, then remove -- to run.
+-- 4. DO NOT grant admin based solely on email, username, or request metadata.
+--
+-- update public.profiles set role='admin',designer_approved=false
+-- where id='REPLACE_WITH_VERIFIED_USER_UUID'::uuid;
+--
+-- Verify result:
+-- select id,name,email,role from public.profiles where role='admin';

@@ -1,3 +1,4 @@
+import {liveConfigured} from './lib/backend';
 /**
  * Phase A indicative client-side exchange rate. The free public endpoint updates daily,
  * NOT at every transaction. Phase B must lock a server-side quote for each order.
@@ -16,16 +17,16 @@ export async function loadUsdIdr(signal?: AbortSignal, force = false): Promise<F
     } catch { /* stale cache */ }
   }
   try {
-    const response = await fetch('https://open.er-api.com/v6/latest/USD', { signal });
+    const response = await fetch(liveConfigured ? '/api/fx' : 'https://open.er-api.com/v6/latest/USD', { signal });
     if (!response.ok) throw new Error('FX service unavailable');
-    const result = await response.json() as { result?: string; rates?: { IDR?: number }; time_last_update_utc?: string };
-    const rate = result.rates?.IDR;
-    if (result.result !== 'success' || !rate || !Number.isFinite(rate) || rate < 1000) throw new Error('Invalid FX quote');
-    const quote: FxQuote = { usdToIdr: rate, source: 'api', asOf: result.time_last_update_utc || new Date().toISOString(), fetchedAt: Date.now() };
+    const result = await response.json() as { result?: string; rates?: { IDR?: number }; time_last_update_utc?: string; usdToIdr?:number;asOf?:string };
+    const rate = liveConfigured?result.usdToIdr:result.rates?.IDR;
+    if (!rate || !Number.isFinite(rate) || rate < 1000 || (!liveConfigured&&result.result!=='success')) throw new Error('Invalid FX quote');
+    const quote: FxQuote = { usdToIdr: rate, source: 'api', asOf: (liveConfigured?result.asOf:result.time_last_update_utc) || new Date().toISOString(), fetchedAt: Date.now() };
     try { localStorage.setItem(FX_CACHE_KEY, JSON.stringify(quote)); } catch { /* storage disabled */ }
     return quote;
   } catch (error) {
-    if ((error as Error)?.name === 'AbortError') throw error;
+    if ((error as Error)?.name === 'AbortError' || liveConfigured) throw error;
     return { usdToIdr: DEMO_USD_TO_IDR, source: 'demo', asOf: '', fetchedAt: Date.now() };
   }
 }

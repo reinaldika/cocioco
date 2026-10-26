@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, Heart, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
-import { products } from '../data';
+
 import ProductCard from '../components/ProductCard';
 import { useStore } from '../store';
 import { Reveal } from '../components/Decor';
@@ -10,7 +10,7 @@ export default function Shop() {
   const [params, setParams] = useSearchParams();
   const initialCategory = params.get('category') || 'all';
   const [query, setQuery] = useState(''); const [sort, setSort] = useState('featured');
-  const { wishlist } = useStore();
+  const { wishlist,products } = useStore();
   const category = ['all', 'physical', 'digital'].includes(initialCategory) ? initialCategory : 'all';
   const onlyFavorites = params.get('favorites') === '1';
   const changeCategory = (c: string) => { const p = new URLSearchParams(params); if (c === 'all') p.delete('category'); else p.set('category', c); p.delete('favorites'); setParams(p); };
@@ -20,7 +20,7 @@ export default function Shop() {
     if (sort === 'high') result = [...result].sort((a,b) => b.price - a.price);
     if (sort === 'name') result = [...result].sort((a,b) => a.name.localeCompare(b.name));
     return result;
-  }, [category, onlyFavorites, wishlist, query, sort]);
+  }, [category, onlyFavorites, wishlist, query, sort,products]);
   return <>
     <section className="container page-hero shop-hero"><div className="shop-hero-copy"><div className="eyebrow"> THE COCIOCO GOODS DEPARTMENT</div><h1>Goodies for your<br/><em>happy little world.</em></h1><p>From collectible cuteness to digital magic. Find the things that make your heart go <b>!!!</b></p><span className="page-hero-note">DESIGNED TO MAKE YOU SMILE ↗</span></div><div className="shop-hero-art"><img src="/assets/elements.svg" alt="Playful colorful digital graphics"/><span className="shop-sun">✷</span><span className="shop-mini-label">100% CUTE<br/>0% BORING</span></div></section>
     <section className="container catalog-section page-section"><Reveal><div className="catalog-title-row"><div><span className="eyebrow">YOUR NEXT FAVORITE THING ♡</span><h2>{onlyFavorites ? 'Your little loves.' : 'Shop the collection.'}</h2></div><div className="catalog-result">{listed.length} GOODIES FOUND <Sparkles size={18}/></div></div></Reveal>

@@ -1,4 +1,4 @@
-import type { CartItem, CustomSelection, CustomPriceOverride, OrderLine } from './types';
+import type { Product, CartItem, CustomSelection, CustomPriceOverride, OrderLine } from './types';
 import { products } from './data';
 
 export type Choice = { id: string; label: string; extra: number };
@@ -26,13 +26,13 @@ export function customQuote(selection: CustomSelection, quantity: number, prices
   const unitPrice=Math.round(rawUnit*(1-discount));
   return {type:t,size,material,finish,base,rawUnit,unitPrice,designFee,quantityDiscount:discount,total:unitPrice*Math.max(1,quantity)+designFee};
 }
-export function resolveCartLine(item: CartItem, prices: Record<string,CustomPriceOverride> = {}): OrderLine | null {
+export function resolveCartLine(item: CartItem, prices: Record<string,CustomPriceOverride> = {}, catalog: Product[] = products): OrderLine | null {
   if(item.custom) {
     const q=customQuote(item.custom,item.quantity,prices);
     return { key:item.lineId || item.productId,name:`Custom ${q.type.name}`,image:q.type.image,quantity:item.quantity,category:'custom',unitPrice:q.unitPrice,designFee:q.designFee,total:q.total,custom:item.custom,detail:`${q.size.label} · ${q.material.label} · ${q.finish.label} · ${item.custom.designService==='designer'?'Designer requested':'Own artwork'}` };
   }
-  const p=products.find(x=>x.id===item.productId);
+  const p=catalog.find(x=>x.id===item.productId);
   return p? {key:item.lineId||item.productId,name:p.name,image:p.image,quantity:item.quantity,category:p.category,unitPrice:p.price,designFee:0,total:p.price*item.quantity,detail:p.collection}:null;
 }
-export function cartTotal(cart:CartItem[],prices:Record<string,CustomPriceOverride>={}){return cart.reduce((total,item)=>total+(resolveCartLine(item,prices)?.total??0),0);}
-export function isPhysicalLine(item:CartItem){ return Boolean(item.custom || products.find(p=>p.id===item.productId)?.category==='physical'); }
+export function cartTotal(cart:CartItem[],prices:Record<string,CustomPriceOverride>={},catalog:Product[]=products){return cart.reduce((total,item)=>total+(resolveCartLine(item,prices,catalog)?.total??0),0);}
+export function isPhysicalLine(item:CartItem,catalog:Product[]=products){ return Boolean(item.custom || catalog.find(p=>p.id===item.productId)?.category==='physical'); }

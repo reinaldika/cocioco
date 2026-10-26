@@ -1,126 +1,110 @@
-# COCIOCO SHOP — Phase A+ (All Four New Pillars)
+# COCIOCO SHOP — PHASE B (Connected Commerce & Commission Backend)
 
-**Make cute things happen.** A mobile-friendly kawaii / Y2K creative shop and freelance commission board, made with React, TypeScript, Vite, React Router, and Framer Motion.
+**Original Y2K/kawaii website preserved.** React 19, Vite 6, TypeScript, React Router, Framer Motion, Supabase Auth/Postgres/Storage and Vercel Functions. This package upgrades the previously approved Phase A+ shop; it does not replace the design.
 
-> **IMPORTANT: PHASE A IS AN INTERACTIVE PREVIEW, NOT A LIVE MULTI-USER BUSINESS SYSTEM.** The website can be publicly hosted on Vercel, but tasks, admin edits, carts and orders currently live inside each visitor's own browser (`localStorage`). They are not shared across devices, and there is no secure login, protected assets, or real bank/PayPal payment verification. Don't use this revision for real commission or money collection until Phase B connects a trusted backend.
+> **IMPORTANT — Connection not activated yet.** A dedicated COCIOCO Supabase project is required. The Supabase account currently linked to the workspace showed *only* an unrelated inactive project called “Garwa Creative Management”. We deliberately did **not** modify that project. The ZIP contains SQL, secure API source, and setup documentation; it is **not** evidence that a real COCIOCO database was created or validated. DO NOT accept real orders or commissions before completing the activation and integration tests below.
 
-## Four new experiences in Phase A+
+## What is built
 
-| Pillar | Live in this browser preview | Admin control |
-| --- | --- | --- |
-| **1. Order Tracking** | `/track` — look up order with Order ID + checkout email, view timestamped status history, courier and resi | **Orders & tracking** — payment verification, manual fulfillment stages and notes |
-| **2. Custom Studio** | `/custom` — collection book, card holder, keychain and photocard set; size/material/finish/quantity, design service, live price, add to same cart and payment | **Custom pricing** — edit base and designer-service fees; **Orders** — prepare a designer commission from an eligible paid custom order |
-| **3. Leaderboards** | `/leaderboard` — Top Designers by approved projects/optional earnings IDR; Top Collectors by verified order points, opt-in only | See rankings driven by browser-local demo activity; no real person data published |
-| **4. Gives Back Journal** | `/giving` — articles and activity updates, **no real-time donation amount display** | **Giving articles** — create, edit, draft, publish and remove articles. Activity claims require an accuracy acknowledgment |
-
-All four are **functional interactive UI prototypes, not authenticated multi-user production systems**. The source is ready to push to a Vercel-linked Git repo, but Phase B is required before real customer orders, client assets or verified transfers are handled. See `docs/PHASE_A_PLUS_FEATURES.md` and `docs/PHASE_B_UPDATED_SCOPE.md`.
-
-### Quick preview paths
-
-- `/` — four-pillar homepage and new community feature cards
-- `/custom` — interactive product designer; add to `/cart` and then `/payment/:id`
-- `/track` — customer tracking and timeline
-- `/leaderboard` — designers and collectors, examples versus local activity
-- `/giving` and `/giving/:slug` — social-activity journal and article page
-- `/admin` — **Orders & tracking**, **Custom pricing**, **Giving articles**, plus previous task/payment admin tabs
-
-## Existing Phase A refinements (preserved)
-
-| Request | Implementation |
+| Area | Live-mode implementation |
 | --- | --- |
-| Clearer typography | Display font reserved for big headlines and wordmark; neutral sans-serif medium/semibold for prices, commission detail and dashboards; improved letter spacing |
-| Softer neutral black | `--black: #282828` in `src/phase-a.css` (visual interpretation of dark near-K90 charcoal) |
-| Remove 8-point purple symbol | Removed the repeating asterisk decoration in navigation, headings, header/footer, and homepage elements |
-| Green ribbon spacing | Enlarged margin between pink/lilac homepage hero and green marquee |
-| Replace ribbon hearts | Circles replace the heart separators in the lime-green running text |
-| Required country | Customer chooses country before checkout. Indonesia remains IDR; others quoted in USD |
-| International price ×3 | Formula: `(IDR subtotal after discount ÷ USD-to-IDR rate) × 3`, rounded to USD cents |
-| Updated USD/IDR | Fetches daily reference FX from [ExchangeRate-API open access](https://www.exchangerate-api.com/docs/free), cached in browser for up to 24 hours. Their open rate updates **once daily**, not intraday. If unreachable, UI labels a **DEMO ESTIMATE** fallback of 18,000 IDR / USD |
-| Payment instructions | `/payment/:orderId` route; Indonesian bank transfer / international manual PayPal instructions; order summary and copy buttons |
-| Payment proof to WhatsApp | Prewritten WhatsApp message to **+62 823-1742-2632**; customer must attach image/receipt manually in WhatsApp |
-| Admin payment settings | Under `/admin` → **Payment settings**: bank name, account number, account holder, PayPal email, WhatsApp; **local browser storage only** |
-| Demo order statuses | Admin can locally mark awaiting payment, pending verification, or verified for illustration; no actual verification |
+| Account | Supabase Auth email/password registration and sign-in, email verification, customer/designer/admin roles, designer approval controlled by administrator. |
+| Shop | Public database catalog; admin can edit product names, images, pricing, stock, publish state, and upload protected digital deliverables. |
+| Checkout | Authenticated order submission, server-side validation and recomputation of product/custom prices, ISO country choices, FX fetched by server for international USD, 3× multiplier, idempotent checkout token, transactional stock reserve. |
+| Payment | Saved bank/PayPal destinations, WhatsApp proof handoff, admin manual payment review, rejected *unpaid* order automatically releases reserved physical stock. No automatic payment confirmation. |
+| Tracking | Private customer order history and delivery status timeline with manual admin notes, courier name and resi number. |
+| Custom Studio | Four merchandise types, size/material/finish/quantity, optional designer service fee, protected customer artwork upload and product pricing configured by admin (base fee/design fee). |
+| Commission Hub | Admin create task, attach private client brief/files, exclusive atomic database claim, eight-hour deadline, escalating penalties, private designer file submission, admin review/revision/approval, manual payout status. |
+| Leaderboard | Approved designer projects with private-by-default earnings; collector rankings only for customers who explicitly opt in. Public leaderboard RPC excludes PII. |
+| Gives Back | Owner-managed introduction and real activity news articles. **No public donation totals**; no invented posts. Admin confirms real activity before publishing. |
 
-### Critical payment disclaimer
+**Not automated:** bank/PayPal transfers, actual proof attachment in WhatsApp (user must send it), courier status, packing, payout transfers, bulk production, design approvals, shipping fees, taxes, digital licenses, donation disbursement and reporting. These require owner operations and/or additional integrations. Do not advertise automatic shipping tracking.
 
-**Bank account and PayPal email have deliberately been left empty.** They were not provided by the owner, and fake bank details are unsafe. Fill them in through the preview admin panel to test the flow on **your own device**. Those edits are NOT published to other visitors in Phase A. Until Phase B, keep real payment/transfer instructions handled manually off-site.
+## STEP 1 — Set up a new dedicated Supabase project
 
-The free indicative FX rate is **not** the actual settlement rate and cannot be considered a binding, accurate live transaction quote. Server-side price locking, shipping, fees, PayPal terms, and order verification belong to Phase B.
+1. Open <https://supabase.com/dashboard> and create **a NEW project named COCIOCO SHOP**, separate from unrelated businesses.
+2. Select a suitable database region, securely save DB credentials yourself, and wait for project readiness. Do not paste service-role/secret keys into chat, source code, screenshots or GitHub.
+3. In the dedicated project's **SQL Editor**, review and run the complete `database/COCIOCO_PHASE_B_SETUP.sql` **once**. It creates the schema, tables, indexes, RLS policies, restricted transactional SQL functions, four PRIVATE Storage buckets, and sample catalog. It intentionally does not create imaginary charity activities, fake customers or fake jobs.
+4. In **Authentication → URL Configuration**, set Site URL to `https://cocioco.vercel.app` and allow the deployment origin in Redirect URLs, including preview domains only if you intend them to accept sign-in. Configure email provider/confirmation and anti-abuse limits.
+5. Obtain your project's URL and **publishable key** for the frontend; use the service-role key only inside Vercel server-side environment variables (never a `VITE_` value). Recommended: use Vercel encrypted sensitive variables.
 
-## Run locally
+## STEP 2 — Set Vercel environment variables
 
-Requires Node.js 20+ (Node 22 recommended) and npm:
+In your existing Vercel project **cocioco**, Settings → Environment Variables:
 
-```bash
-npm install
-npm run dev
-```
+| Variable | Scope | Value source |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | Frontend / production | Supabase Project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Frontend / production | Supabase `sb_publishable_...` key |
+| `SUPABASE_URL` | Server / production | Same project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret server-side only** | Supabase legacy service_role key (or compatible secret key) |
 
-Open `http://localhost:5173`.
+**NEVER** prefix a service-role or secret key with `VITE_`. Frontend values are bundled into publicly inspectable JavaScript. The server verifies the actual bearer token via Supabase Auth and checks the database profile role on every privileged request.
 
-Build with:
+When all four are configured, Vite automatically switches from demo-local state to live Supabase state on the next deployment. The `/api/command` and `/api/fx` functions execute on Vercel. If only some variables are set, do not open checkout to customers; complete the full set first.
 
-```bash
-npm run build
-```
+## STEP 3 — Deploy without creating a duplicate Vercel project
 
-## Update the EXISTING Vercel website (important)
+1. Extract this ZIP and copy the **contents** of `cocioco-shop` into the root of your existing GitHub repo (the one connected to `cocioco.vercel.app`). Commit your changes to a review or preview branch first.
+2. On Vercel use **Vite**, `npm install`, build `npm run build`, output `dist`.
+3. Verify build, `/api/fx`, `/auth`, `/shop`, `/cart`, `/custom`, `/commissions`, `/giving`. `vercel.json` preserves direct links to the SPA routes.
+4. After verifying in preview, merge to `main` to release. **Production deployment is not performed by the supplied ZIP.**
 
-If you've already deployed the GitHub project `reinaldika/cocioco` and connected it to `cocioco.vercel.app`, **do not create a new Vercel project**.
+Local development: copy `.env.example` to `.env.local` and fill frontend keys. The `/api` functions require Vercel runtime for full local testing (`vercel dev`) and server-only credentials. Plain `npm run dev` serves frontend only. Install: `npm install`. Static build: `npm run build`.
 
-1. Extract `COCIOCO_SHOP_PHASE_A_PLUS_ALL_FOUR.zip`.
-2. Open the extracted `cocioco-shop` folder.
-3. Replace/add **the files inside this folder** in the root of your existing GitHub repo. Do not put the ZIP itself or an extra nested `cocioco-shop` folder at the repo root if your existing project expects the source files at root.
-4. Commit the changes to `main`. Vercel will automatically build and deploy the new version once Git integration is active.
-5. In Vercel check Deployments → latest → **Ready**. In one browser, try `/custom` → `/cart` → `/payment/:id`, then `/track` and the updated admin panel. See `docs/PHASE_A_PLUS_FEATURES.md` for the complete testing checklist.
+## STEP 4 — Register and authorize the first admin
 
-For a new project, import a Git repo into Vercel with preset **Vite**, install `npm install`, build `npm run build`, output `dist`. The provided `vercel.json` handles deep SPA routes.
+1. After site is connected, sign up at `/auth` as **Customer** with the actual owner's email. Confirm your email.
+2. Go to dedicated Supabase Dashboard → Authentication → Users. Copy the owner's exact UUID.
+3. Follow `database/BOOTSTRAP_ADMIN_INSTRUCTIONS.sql` in the project's SQL Editor. Promote **only** that known UUID to `admin`.
+4. Sign out and sign in again. `/admin` now provides Products, Designer Approvals, Orders & Tracking, Custom Pricing, Task Management, Giving Articles, and Payment Settings.
+5. In **Payment Settings**, input official **bank name, account holder, account number**, international **PayPal email**, and verify WhatsApp `6282317422632`. Checkout is blocked server-side when the selected country's destination is missing.
+6. For digital catalog products, **upload the actual licensed digital deliverable** before selling. The backend refuses digital products without an uploaded asset path.
 
-**No environment keys are required for this Phase A demo.**
+**Do not promote admin roles based only on a self-submitted email address.** Admin actions are verified against server-side database roles. Designer registration sets an approval request; they cannot claim tasks until admin approves.
 
-## Key pages
+## STEP 5 — Activate commission expiry cron (required before live commissions)
 
-- `/` — homepage, illustrated products, animated marquee
-- `/shop` — product catalog
-- `/custom` — adjustable custom merchandise configuration and live pricing
-- `/track` — manual order-tracking customer lookup
-- `/leaderboard` — creator and collector rankings
-- `/giving` — community journal (no public financial donation totals)
-- `/cart` — destination-aware product pricing, discount, and checkout
-- `/payment/:id` — order payment instruction and WhatsApp proof handoff
-- `/commissions` — commission listing
-- `/commissions/CO-002` — project details, claim, demo countdown
-- `/dashboard` — local designer workspace
-- `/admin` — local admin task review, orders, **Payment settings**
-- `/auth` — local-only admin/designer demo role switching
+Run `database/OPTIONAL_ENABLE_EXPIRY_CRON.sql` **in the COCIOCO project** after you enable Supabase Cron/pg_cron from Dashboard. It schedules `backend_expire_tasks()` once per minute. Without it, expirations only occur when a later claim invokes the server function, so you must **not** launch time-sensitive commissions or claim that penalties auto-run without traffic.
 
-Sample promo code: `COCIO10`. Sample products and tasks are illustrative; leaderboard showcase profiles are entirely fictional.
+SQL functions lock task rows and use transactional updates to prevent two designers simultaneously claiming the same task. Penalties: 8h, 16h, 32h, 64h, then permanent suspension. A revision doesn't trigger the original missed-deadline penalty automatically. Admin must agree a new revision schedule with the designer.
 
-## Technical files
+## STEP 6 — Required operational tests before taking money
 
-- `src/phase-a-plus.css` — responsive new feature UI, transitions, admin panels
-- `src/custom.ts` — custom merchandise specifications, surcharges and line calculations
-- `src/giving.ts` — demo introductory article + unpublished draft template
-- `src/pages/CustomStudio.tsx`, `TrackOrder.tsx`, `Leaderboard.tsx`, `GivesBack.tsx` — four feature pages
-- `src/components/AdminOrderCard.tsx`, `AdminCustomPricing.tsx`, `AdminGivingArticles.tsx`, `OrderTimeline.tsx` — admin and tracking components
-- `src/phase-a.css` — Phase A typography, spacing, new checkout/payment styles
-- `src/styles.css` — original design system preserved underneath Phase A overrides
-- `src/pages/Cart.tsx` — country selector, pricing, buyer form
-- `src/pages/Payment.tsx` — new payment details and WhatsApp handoff
-- `src/pricing.ts` — international multiplier + daily indicative FX fetch / demo fallback
-- `src/countries.ts` — destination options
-- `src/components/PaymentSettingsPanel.tsx` — demo admin editable payment information
-- `src/store.tsx`, `src/types.ts` — demo order schema and state
-- `src/data.ts` — illustrative products, tasks, marketplace links
+Run tests on a NEW project with fake/test accounts and harmless data, not with genuine customer payment data:
 
-## Demo constraints
+- Register + verify a customer; verify customer cannot access `/admin`, other customers' orders, brief files or another account's custom artwork.
+- Register designer → admin approves → designer claims task → second designer cannot claim → first can access brief/files and submit once.
+- Run `select public.backend_expire_tasks();` manually as SQL Editor operator on an intentionally expired *test* task. Confirm exactly one penalty and reopening, then test cron schedule.
+- Create ready-stock/cart custom orders; verify calculated IDR totals and international `(IDR / FX) × 3`, and double-click retry does **not** reserve stock twice.
+- Admin confirms payment; customer sees tracked status. Admin rejects an **unverified** test order; confirm stock is released. Do not use a real bank transfer for testing.
+- Confirm customers cannot download paid digital files **before** payment verification or when product has no uploaded asset. After verification, authorized purchased files generate short-lived signed links.
+- Confirm creator earning totals are private without explicit opt-in, and buyer leaderboard excludes orders without opt-in.
+- Publish a real, verified charity-activity article only after documentation; ensure the public journal has no fake totals or fabricated events.
+- Test error states, WCAG contrast, mobile navigation, privacy, anti-spam rules, Vercel observability and data backup.
 
-- Every visitor gets separate local task/cart/order state. **A real admin cannot see customer orders across different browsers.**
-- Admin/role switching is not secure. Browser localStorage is user-editable.
-- Task claim/deadline and penalties are demonstrative only and do not enforce exclusivity across users.
-- Payment details configured in admin are only local to that device. Do not use as publicly authoritative bank/PayPal information.
-- WhatsApp link prepares a message but **cannot automatically attach a payment screenshot**.
-- Digital assets / client briefs and submitted files are NOT securely stored; submission demo saves filename only.
-- Product inventory, shipping totals, taxes, exchange-rate locking, price changes and order verification require the server-side Phase B migration.
+## Important boundaries
 
-See `docs/PHASE_B_UPDATED_SCOPE.md`, `docs/PHASE_B_IMPLEMENTATION.md` and `docs/PRODUCTION_ROADMAP.md` for the backend rollout plan.
+- **Manual payment verification** does not guarantee a completed sale. Buyer WhatsApp receipts are not automatically checked. Shipping, duties and bank charges are quoted separately.
+- Physical inventory is **reserved** at checkout and **restored** if admin rejects an unpaid order. There is no automatic unpaid-order expiry yet: admin should review and close abandoned orders. Verified refunds/returns require a separate reconciliation workflow; don't use the rejected status to reverse verified orders.
+- Digital filenames, licenses and actual files must be entered/uploaded by the owner. Demo seeded items do not include commercial file deliverables.
+- Custom artwork is private. Client briefs and designer submissions are private. Do not re-share customer artwork to contributors without appropriate approval.
+- Product size/material/finish surcharges are currently defined in `src/custom.ts`; admin can edit base price and designer fee, not every configuration option yet. Make spec options database-driven in the next iteration if that is needed for daily operations.
+- The Giving Back 2.5% commitment is **brand copy and an internal operational promise**, not a public cash counter or automated allocation. Maintain responsible internal records and legal/accounting review; no automatic charitable transfers are built.
+- Vercel usage for active commerce should follow an appropriate paid commercial plan and its current terms.
+- `COCIOCO_PHASE_B_SETUP.sql` is designed for a **new, empty COCIOCO Supabase project only**. Don't run it against Garwa or any preexisting business schema.
+
+## Project files
+
+- `src/live-store.tsx`, `src/lib/backend.ts`, `src/pages/LiveAuth.tsx` — real account state, read services, upload/download with RLS.
+- `api/command.ts`, `api/fx.ts`, `server/` — verified Vercel server handlers and rate source.
+- `database/COCIOCO_PHASE_B_SETUP.sql` — dedicated database, transactional RPCs, RLS, storage, sample catalog.
+- `database/BOOTSTRAP_ADMIN_INSTRUCTIONS.sql` — secure first admin bootstrap.
+- `database/OPTIONAL_ENABLE_EXPIRY_CRON.sql` — deadline enforcement job.
+- `src/components/AdminProducts.tsx`, `AdminDesigners.tsx`, `AdminTaskAsset.tsx` — admin tools.
+- `src/phase-b.css` — connected account/admin styles.
+- `docs/PHASE_B_RELEASE_CHECKLIST.md` — sign-off checklist.
+
+### Test status of this ZIP
+
+All TS/TSX files were parsed using TypeScript; an additional dependency-stubbed typecheck checked internal project types and imports. The full `npm run build`, actual Supabase SQL execution, real login, end-to-end checkout and Vercel deployment could **not** be executed in the current isolated environment because npm packages are unavailable and no dedicated COCIOCO Supabase project exists. Validate against the actual dependencies and database before launch.
