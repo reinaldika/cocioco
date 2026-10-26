@@ -24,5 +24,10 @@
     "@vitejs/plugin-react": "4.7.0",
     "typescript": "5.9.2",
     "vite": "6.3.5"
+  },
+  "overrides": {
+    "motion-dom": "12.23.12",
+    "motion-utils": "12.23.6"
   }
 }
+  
