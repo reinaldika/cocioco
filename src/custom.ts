@@ -1,5 +1,5 @@
 import type { Product, CartItem, CustomSelection, CustomPriceOverride, OrderLine } from './types';
-import { products } from './data';
+import { products } from './data.js';
 
 export type Choice = { id: string; label: string; extra: number };
 export type MerchType = { id: CustomSelection['typeId']; name: string; subtitle: string; image: string; tint: string; base: number; designFee: number; sizes: Choice[]; materials: Choice[]; finishes: Choice[]; turnaround: string };
