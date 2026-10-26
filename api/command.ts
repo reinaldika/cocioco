@@ -1,9 +1,9 @@
-import type { Request,Response } from '../server/server';
-import { adminDb, caller, send, reqBody, assertAdmin, asText, asPositive, errorText } from '../server/server';
-import { usdIdr } from '../server/fx';
-import { customQuote, customTypes } from '../src/custom';
-import type { CustomSelection } from '../src/types';
-import { countries } from '../src/countries';
+import type { Request, Response } from '../server/server.js';
+import { adminDb, caller, send, reqBody, assertAdmin, asText, asPositive, errorText } from '../server/server.js';
+import { usdIdr } from '../server/fx.js';
+import { customQuote, customTypes } from '../src/custom.js';
+import type { CustomSelection } from '../src/types.js';
+import { countries } from '../src/countries.js';
 
 function cleanSelection(raw:unknown):CustomSelection {
  if(!raw || typeof raw!=='object' || Array.isArray(raw))throw new Error('Invalid custom configuration');
