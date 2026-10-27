@@ -40,6 +40,11 @@ export type Store = DemoState & {
   setCreatorEarningsVisibility:(visible:boolean)=>void;
   createTask: (task: CreateTask) => ActionResult | Promise<ActionResult>;
   setTaskStatus: (id: string, status: TaskStatus) => void | Promise<void>;
+  saveTaskReview?: (
+  id: string,
+  decision: 'approved' | 'revision',
+  note: string
+) => ActionResult | Promise<ActionResult>;
   resetPenalties: (userId?: string) => void | Promise<void>;
   simulateExpiry: (id: string) => void;
   resetDemo: () => void;
@@ -199,7 +204,59 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
     setState(s => ({ ...s, tasks: [task, ...s.tasks],orders:input.orderId?s.orders.map(o=>o.id===input.orderId?{...o,linkedTaskId:task.id}:o):s.orders }));
     return { ok: true, message: 'New commission published to the board.' };
   };
-  const setTaskStatus = useCallback((id: string, status: TaskStatus) => setState(s => ({ ...s, tasks: s.tasks.map(t => t.id === id ? { ...t, status, ...(status === 'available' ? { assignedTo: undefined, assigneeName: undefined, claimedAt: undefined, deadlineAt: undefined } : {}), ...(status === 'revision' ? { deadlineAt: Date.now() + 4 * 3600000 } : {}) } : t) })), []);
+  const setTaskStatus = useCallback((id: string, status: TaskStatus) => setState(s => ({ ...s, tasks: s.tasks.map(t => t.id === id ? { ...t, status, ...(status === 'available' ? { assignedTo: undefined, assigneeName: undefined, claimedAt: undefined, deadlineAt: undefined } : {}), ...(status === 'revision' ? { deadlineAt: Date.now() + 4 * 3600000 } : {}) } : t) })), []); 
+  const saveTaskReview = (
+    id: string,
+    decision: 'approved' | 'revision',
+    note: string
+  ): ActionResult => {
+    if (user?.role !== 'admin') {
+      return { ok: false, message: 'Admin access required.' };
+    }
+
+    const task = tasks.find(t => t.id === id);
+    if (!task || task.status !== 'under_review' || !task.submissions.length) {
+      return { ok: false, message: 'No submission available for review.' };
+    }
+
+    const feedback = note.trim();
+    if (decision === 'revision' && !feedback) {
+      return { ok: false, message: 'Revision notes are required.' };
+    }
+    if (feedback.length > 2000) {
+      return { ok: false, message: 'Review notes are too long.' };
+    }
+
+    const now = Date.now();
+    const reviewerId = user.id;
+    const submissionAt = task.submissions[task.submissions.length - 1].submittedAt;
+
+    setState(s => ({
+      ...s,
+      tasks: s.tasks.map(t => {
+        if (t.id !== id || t.status !== 'under_review') return t;
+
+        return {
+          ...t,
+          status: decision === 'approved' ? 'completed' as const : 'revision' as const,
+          reviewHistory: [
+            ...(t.reviewHistory ?? []),
+            { decision, note: feedback, reviewerId, reviewedAt: now, submissionAt }
+          ],
+          ...(decision === 'approved'
+            ? { approvedAt: now, payoutStatus: 'pending' as const, deadlineAt: undefined }
+            : { deadlineAt: now + 4 * 3600000 })
+        };
+      })
+    }));
+
+    return {
+      ok: true,
+      message: decision === 'approved'
+        ? 'Work approved. Payout is pending manual processing.'
+        : 'Revision requested and review notes recorded.'
+    };
+  };
   const simulateExpiry = useCallback((id: string) => {
     setState(s => {
       const task = s.tasks.find(t => t.id === id);
@@ -214,7 +271,7 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
   const resetPenalties = useCallback((userId?: string) => setState(s => ({ ...s, penalties: userId ? s.penalties.filter(p => p.userId !== userId) : [] })), []);
   const resetDemo = useCallback(() => setState(blank()), []);
 
-  const value:Store={backendMode:'demo',products:sampleProducts, user,tasks,penalties,cart,wishlist,orders,paymentSettings,customPrices,givingArticles,loginDemo,registerDemo,logout,claimTask,submitTask,addCart,addCustomToCart,setCartQuantity,removeCart,toggleWishlist,placeOrder,updatePaymentSettings,setOrderPaymentStatus,updateOrderTracking,upsertGivingArticle,deleteGivingArticle,updateCustomPrice,setCreatorEarningsVisibility,createTask,setTaskStatus,resetPenalties,simulateExpiry,resetDemo };
+  const value:Store={backendMode:'demo',products:sampleProducts, user,tasks,penalties,cart,wishlist,orders,paymentSettings,customPrices,givingArticles,loginDemo,registerDemo,logout,claimTask,submitTask,addCart,addCustomToCart,setCartQuantity,removeCart,toggleWishlist,placeOrder,updatePaymentSettings,setOrderPaymentStatus,updateOrderTracking,upsertGivingArticle,deleteGivingArticle,updateCustomPrice,setCreatorEarningsVisibility,createTask,setTaskStatus,saveTaskReview,resetPenalties,simulateExpiry,resetDemo };
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 export function StoreProvider({children}:{children:ReactNode}) {return liveConfigured?<LiveStoreProvider>{children}</LiveStoreProvider>:<DemoStoreProvider>{children}</DemoStoreProvider>;}
