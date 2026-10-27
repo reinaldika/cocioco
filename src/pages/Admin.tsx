@@ -14,7 +14,7 @@ import AdminGivingArticles from '../components/AdminGivingArticles';
 import PaymentSettingsPanel from '../components/PaymentSettingsPanel';
 import { useToast } from '../components/Toast';
 export default function Admin() {
-  const { user, tasks, penalties, orders, logout, createTask, setTaskStatus, resetDemo, simulateExpiry, markPaid,backendMode } = useStore(); const navigate=useNavigate(); const toast=useToast();
+  const { user, tasks, penalties, orders, logout, createTask, setTaskStatus, resetDemo, simulateExpiry, markPaid,saveTaskReview,backendMode } = useStore(); const navigate=useNavigate(); const toast=useToast();
   const [tab,setTab]=useState<'overview'|'tasks'|'designers'|'orders'|'payments'|'custompricing'|'giving'|'products'>('overview'); const [open,setOpen]=useState(false);
     const [reviewTaskId, setReviewTaskId] = useState<string | null>(null);
   const [form,setForm]=useState<{title:string;category:string;description:string;reward:number;brief:string;orderId?:string}>({title:'',category:'Merchandise',description:'',reward:150000,brief:''});
@@ -30,6 +30,35 @@ const reviewTask = tasks.find(t => t.id === reviewTaskId);
     toast('Add a fair designer reward, check the brief, and publish this task. No automatic assignment yet.');
   };
   const changeStatus=async(id:string,status:TaskStatus)=>{try{await setTaskStatus(id,status);toast(`Task ${id} moved to ${statusLabel[status]}.`);}catch(e){toast(readableError(e),true);}};
+const handleReview = async (decision: 'approved' | 'revision') => {
+  if (backendMode !== 'demo' || !saveTaskReview || !reviewTask) {
+    toast('Review actions are not enabled in live mode yet.', true);
+    return;
+  }
+
+  if (decision === 'revision' && !reviewNote.trim()) {
+    toast('Please write revision feedback first.', true);
+    return;
+  }
+
+  if (decision === 'approved' &&
+      !window.confirm('Approve this work? This will mark the payout as pending, not paid.')) {
+    return;
+  }
+
+  try {
+    const result = await saveTaskReview(reviewTask.id, decision, reviewNote);
+    toast(result.message, !result.ok);
+
+    if (result.ok) {
+      setReviewTaskId(null);
+      setReviewNote('');
+    }
+  } catch (error) {
+    toast(readableError(error), true);
+  }
+};
+
   return <div className="container dashboard-page admin-page"><div className="dashboard-hero admin-hero"><div><span className="eyebrow"> COCIOCO OPERATIONS</span><h1>Creator control <em>room.</em></h1><p>Keep creative chaos organized. You're in charge today! ♡</p></div><div className="dashboard-hero-decoration"> <span>♥</span></div></div><div className="dashboard-layout"><aside className="dashboard-sidebar"><div className="dashboard-user"><div className="avatar admin-avatar">C</div><div><strong>COCIOCO Team</strong><span>{backendMode==='live'?'ADMIN WORKSPACE':'DEMO ADMIN'}</span></div></div><div className="dash-nav">{[{id:'overview',text:'Overview',icon:LayoutDashboard},{id:'tasks',text:'Manage tasks',icon:ClipboardList},{id:'designers',text:'Designers & penalties',icon:Users},{id:'orders',text:'Orders & tracking',icon:ShoppingBag},{id:'products',text:'Shop products',icon:ShoppingBag},{id:'custompricing',text:'Custom pricing',icon:Coins},{id:'giving',text:'Giving articles',icon:Sparkles},{id:'payments',text:'Payment settings',icon:Settings}].map(item=><button key={item.id} className={tab===item.id?'active':''} onClick={()=>setTab(item.id as typeof tab)}><item.icon size={18}/>{item.text}<ArrowUpRight size={15} className="dash-nav-arrow"/></button>)}<Link to="/commissions"><Sparkles size={18}/>View public board <ArrowUpRight size={15}/></Link></div><button className="sign-out" onClick={()=>{logout();navigate('/')}}><LogOut size={17}/> Sign out</button></aside><div className="dashboard-content">
   {tab==='overview'&&<><div className="admin-stats"><div><span>OPEN COMMISSIONS</span><strong>{counts.available}</strong><small> Ready to claim</small></div><div><span>IN PROGRESS</span><strong>{counts.progress}</strong><small>♥ Being created</small></div><div><span>NEEDS REVIEW</span><strong>{counts.review}</strong><small>✦ Take a look</small></div><div><span>COMPLETED</span><strong>{counts.completed}</strong><small>✓ Approved</small></div></div><div className="dash-section-title"><div><span className="eyebrow">AT A GLANCE</span><h2>Today's <em>overview.</em></h2></div><button className="btn btn-purple btn-sm" onClick={()=>setOpen(true)}><Plus size={17}/> Publish task</button></div><h3 className="mini-section-heading">SUBMISSIONS AWAITING REVIEW</h3>{tasks.filter(t=>t.status==='under_review').length?tasks.filter(t=>t.status==='under_review').map(t=><div className="review-card" key={t.id}><img src={t.art} alt=""/><div><small>{t.id} · @{t.assigneeName}</small><strong>{t.title}</strong><span>{t.submissions.at(-1)?.name || 'No filename recorded'}</span></div><div className="review-actions"><button onClick={()=>{   setReviewNote('');   setReviewTaskId(t.id); }}><ArrowUpRight size={16}/> Review submission</button><button onClick={()=>setReviewTaskId(t.id)}><RotateCcw size={16}/> Revision</button></div></div>):<div className="dashboard-empty"><Check size={36}/><h3>You're all caught up!</h3><p>No submissions waiting for review right now.</p></div>}<div className="admin-tip"><Settings size={19}/> {backendMode==='live'?'Admin actions here are saved to COCIOCO’s connected database and visible to authorized users.':'This is a browser-based demo. Connect Supabase to enable shared live data.'}</div></>}
   {tab==='tasks'&&<><div className="dash-section-title"><div><span className="eyebrow">STAY IN CONTROL</span><h2>Task <em>management.</em></h2></div><button className="btn btn-purple btn-sm" onClick={()=>setOpen(true)}><Plus size={17}/> New task</button></div><div className="admin-task-list">{tasks.map(t=><div className="admin-task-item" key={t.id}><img src={t.art} alt=""/><div className="admin-task-info"><small>{t.id} · {t.category}</small><strong>{t.title}</strong><span>{money(t.reward)} · {statusLabel[t.status]}</span></div><div className="admin-task-buttons">{backendMode==='demo'&&t.status==='in_progress' && <button onClick={()=>{simulateExpiry(t.id);toast(`Simulated an expired claim for ${t.id}.`);}}>Test expiry</button>}{t.status==='under_review' && <button onClick={()=>setReviewTaskId(t.id)} className="admin-approve"><ArrowUpRight size={15}/> Review submission</button>}{t.status==='under_review' && <button onClick={()=>setReviewTaskId(t.id)}><RotateCcw size={15}/> Revision</button>}{t.status!=='available' && <button onClick={()=>changeStatus(t.id,'available')}>Reopen</button>}{t.status==='available' && <button onClick={()=>changeStatus(t.id,'cancelled')}>Cancel</button>}{backendMode==='live'&&<AdminTaskAsset id={t.id}/>}
@@ -109,9 +138,31 @@ const reviewTask = tasks.find(t => t.id === reviewTaskId);
         placeholder="Write your feedback here..."
       />
 
-      <p>
-        Review actions are not enabled yet. Notes are not saved.
-      </p>
+      
+{backendMode === 'demo' ? (
+  <div className="admin-modal-buttons">
+    <button
+      type="button"
+      className="btn btn-outline"
+      onClick={() => void handleReview('revision')}
+    >
+      <RotateCcw size={16} />
+      Request Revision
+    </button>
+
+    <button
+      type="button"
+      className="btn btn-purple"
+      onClick={() => void handleReview('approved')}
+    >
+      <Check size={16} />
+      Approve Work
+    </button>
+  </div>
+) : (
+  <p>Live review actions are not enabled yet.</p>
+)}
+
 
       <button
         type="button"
