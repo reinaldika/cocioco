@@ -17,6 +17,15 @@ export type Product = {
 };
 export type TaskStatus = 'available' | 'in_progress' | 'under_review' | 'revision' | 'completed' | 'cancelled';
 export type Submission = { name: string; size: number; submittedAt: number; by: string; path?: string };
+
+export type TaskReview = {
+  decision: 'approved' | 'revision';
+  note: string;
+  reviewerId: string;
+  reviewedAt: number;
+  submissionAt: number;
+};
+
 export type Task = {
   id: string;
   title: string;
@@ -36,6 +45,10 @@ export type Task = {
   claimedAt?: number;
   deadlineAt?: number;
   submissions: Submission[];
+  
+reviewHistory?: TaskReview[];
+approvedAt?: number;
+
   assets?: {path:string;name:string}[];
   payoutStatus?:'pending'|'approved'|'paid';
   paidAt?:number;
