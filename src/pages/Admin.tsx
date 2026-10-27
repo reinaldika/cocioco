@@ -129,7 +129,7 @@ const handleReview = async (decision: 'approved' | 'revision') => {
         </p>
       )}
 
-      <label htmlFor="review-note">Review notes (draft)</label>
+      <label htmlFor="review-note">Review notes</label>
       <textarea
         id="review-note"
         rows={4}
@@ -139,11 +139,26 @@ const handleReview = async (decision: 'approved' | 'revision') => {
       />
 
       
+
 {backendMode === 'demo' ? (
-  <div className="admin-modal-buttons">
+  <div
+    className="admin-modal-buttons"
+    style={{
+      display: 'flex',
+      flexWrap: 'wrap',
+      justifyContent: 'stretch',
+      gap: 12,
+      marginTop: 20
+    }}
+  >
     <button
       type="button"
       className="btn btn-outline"
+      style={{
+        flex: '1 1 170px',
+        minWidth: 0,
+        whiteSpace: 'normal'
+      }}
       onClick={() => void handleReview('revision')}
     >
       <RotateCcw size={16} />
@@ -153,6 +168,11 @@ const handleReview = async (decision: 'approved' | 'revision') => {
     <button
       type="button"
       className="btn btn-purple"
+      style={{
+        flex: '1 1 170px',
+        minWidth: 0,
+        whiteSpace: 'normal'
+      }}
       onClick={() => void handleReview('approved')}
     >
       <Check size={16} />
@@ -163,17 +183,6 @@ const handleReview = async (decision: 'approved' | 'revision') => {
   <p>Live review actions are not enabled yet.</p>
 )}
 
-
-      <button
-        type="button"
-        className="btn btn-outline"
-        onClick={() => {
-          setReviewTaskId(null);
-          setReviewNote('');
-        }}
-      >
-        Close review
-      </button>
     </div>
   </div>
 )}
