@@ -134,3 +134,47 @@ input,select,textarea{border:1.6px solid #b6a7b3;border-radius:12px;padding:13px
     align-items: stretch;
   }
 }
+
+/* Floating admin support */
+
+.floating-admin-chat {
+  position: fixed;
+  right: 24px;
+  bottom: 94px;
+  z-index: 85;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  padding: 13px 20px;
+  border: 2px solid #282128;
+  border-radius: 999px;
+
+  background: #e0f18d;
+  color: #282128;
+  box-shadow: 4px 5px 0 #282128;
+
+  font-size: 12px;
+  font-weight: 900;
+
+  transition: transform .2s, background .2s;
+}
+
+.floating-admin-chat:hover {
+  transform: translateY(-3px);
+  background: #dfcbf8;
+}
+
+@media (max-width: 600px) {
+  .floating-admin-chat {
+    right: 18px;
+    bottom: 91px;
+    padding: 13px;
+  }
+
+  .floating-admin-chat span {
+    display: none;
+  }
+}
