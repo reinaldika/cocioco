@@ -137,7 +137,60 @@ export function LiveStoreProvider({children}:{children:ReactNode}){
  const deleteGivingArticle=(id:string)=>reply(()=>command('deleteArticle',{id}),'Article deleted.');
  const updateCustomPrice=(id:CustomTypeId,v:CustomPriceOverride)=>reply(()=>command('updateCustomPrice',{id,...v}),'Custom pricing updated.');
  const setCreatorEarningsVisibility=(visible:boolean)=>{void reply(()=>command('setCreatorEarningsVisibility',{visible}),'');};
- const createTask=(input:CreateTask)=>reply(()=>command('createTask',input),'New commission published.');
+ 
+const createTask = async (input: CreateTask): Promise<ActionResult> => {
+  const { files = [], ...taskData } = input;
+
+  for (const file of files) {
+    if (!/\.(pdf|png|jpg|jpeg|zip|svg)$/i.test(file.name)) {
+      return { ok: false, message: `Unsupported file: ${file.name}` };
+    }
+    if (file.size < 1 || file.size > 20971520) {
+      return { ok: false, message: `${file.name} must be under 20 MB.` };
+    }
+  }
+
+  let createdId: string | null = null;
+
+  try {
+    const result = await command<{ id: string }>('createTask', taskData);
+    createdId = result.id;
+    if (!createdId) throw new Error('Task ID was not returned.');
+
+    for (const file of files) {
+      const path = await uploadToBucket(
+        'cocioco-task-assets',
+        createdId,
+        file,
+        20971520
+      );
+
+      await command('attachTaskAsset', {
+        id: createdId,
+        path,
+        name: file.name
+      });
+    }
+
+    await refresh();
+
+    return {
+      ok: true,
+      message: 'Commission published with private attachments.'
+    };
+  } catch (error) {
+    if (createdId) {
+      await refresh().catch(() => {});
+      return {
+        ok: false,
+        message: `Task ${createdId} was created, but some attachments failed: ${readableError(error)}. Check Manage tasks and use Add asset. Do not publish again.`
+      };
+    }
+
+    return { ok: false, message: readableError(error) };
+  }
+};
+
  const setTaskStatus=async(id:string,status:TaskStatus)=>{await command('setTaskStatus',{id,status});await refresh();};
  const resetPenalties=async(id?:string)=>{if(!id)throw new Error('Select one designer to reset.');await command('resetPenalties',{id});await refresh();};
  const logout=()=>{void supabase!.auth.signOut().finally(()=>setUser(null));};
