@@ -51,7 +51,7 @@ export type Store = DemoState & {
   deleteGivingArticle: (id:string)=>ActionResult | Promise<ActionResult>;
   updateCustomPrice: (id:CustomTypeId,values:CustomPriceOverride)=>ActionResult | Promise<ActionResult>;
   setCreatorEarningsVisibility:(visible:boolean)=>void;
-  const createTask = (task: CreateTask) => ActionResult | Promise<ActionResult>;
+createTask: (task: CreateTask) => ActionResult | Promise<ActionResult>;
   setTaskStatus: (id: string, status: TaskStatus) => void | Promise<void>;
   saveTaskReview?: (
   id: string,
