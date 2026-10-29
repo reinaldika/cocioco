@@ -10,7 +10,20 @@ import { initialGivingArticles } from './giving';
 
 export type ActionResult = { ok: boolean; message: string };
 export type DemoState = { user: User | null; tasks: Task[]; penalties: Penalty[]; cart: CartItem[]; wishlist: string[]; orders: Order[]; paymentSettings: PaymentSettings; customPrices:Record<string,CustomPriceOverride>;givingArticles:GivingArticle[] };
-export type CreateTask = { title: string; category: string; description: string; reward: number; brief: string;orderId?:string };
+
+export type CreateTask = {
+  title: string;
+  category: string;
+  description: string;
+  reward: number;
+  brief: string;
+  orderId?: string;
+  assets?: {
+    path: string;
+    name: string;
+  }[];
+};
+
 export type Store = DemoState & {
   backendMode:'demo'|'live';loading?:boolean;error?:string;products:Product[];
   creatorLeaders?:Array<{id:string;alias:string;projects:number;earnings:number;earningsPublic:boolean}>;
@@ -38,7 +51,7 @@ export type Store = DemoState & {
   deleteGivingArticle: (id:string)=>ActionResult | Promise<ActionResult>;
   updateCustomPrice: (id:CustomTypeId,values:CustomPriceOverride)=>ActionResult | Promise<ActionResult>;
   setCreatorEarningsVisibility:(visible:boolean)=>void;
-  createTask: (task: CreateTask) => ActionResult | Promise<ActionResult>;
+  const createTask = (task: CreateTask) => ActionResult | Promise<ActionResult>;
   setTaskStatus: (id: string, status: TaskStatus) => void | Promise<void>;
   saveTaskReview?: (
   id: string,
