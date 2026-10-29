@@ -213,7 +213,7 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
     if(input.orderId){ const origin=orders.find(o=>o.id===input.orderId);
       if(!origin || origin.paymentStatus!=='verified' || origin.linkedTaskId || !(origin.lines||[]).some(l=>l.custom?.designService==='designer'))return {ok:false,message:'Custom order must be verified, unlinked, and request design service.'};
     }
-    const task: Task = { id: `CO-${String(Math.floor(Math.random() * 899) + 100)}`, title: input.title.trim(), category: input.category || 'Design', description: input.description.trim(), reward: input.reward, durationHours: 8, status: 'available', postedAt: Date.now(), art: '/assets/elements.svg', tone: 'pink', skills: ['Creative Design', 'Figma'], deliverables: ['Editable source file', 'High-resolution export'], brief: input.brief, submissions: [] };
+    const task: Task = { id: `CO-${String(Math.floor(Math.random() * 899) + 100)}`, title: input.title.trim(), category: input.category || 'Design', description: input.description.trim(), reward: input.reward, durationHours: 8, status: 'available', postedAt: Date.now(), art: '/assets/elements.svg', tone: 'pink', skills: ['Creative Design', 'Figma'], deliverables: ['Editable source file', 'High-resolution export'],  brief: input.brief, assets: input.assets ?? [], submissions: [] };
     setState(s => ({ ...s, tasks: [task, ...s.tasks],orders:input.orderId?s.orders.map(o=>o.id===input.orderId?{...o,linkedTaskId:task.id}:o):s.orders }));
     return { ok: true, message: 'New commission published to the board.' };
   };
