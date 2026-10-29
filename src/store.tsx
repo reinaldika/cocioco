@@ -22,6 +22,7 @@ export type CreateTask = {
     path: string;
     name: string;
   }[];
+  files?: File[];
 };
 
 export type Store = DemoState & {
