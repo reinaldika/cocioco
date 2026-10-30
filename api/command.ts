@@ -145,6 +145,44 @@ export default async function handler(req:Request,res:Response) {
     const {data:id,error}=await db.rpc('backend_admin_create_task',{p_data:params,p_actor:user.id});
     if(error)throw new Error(error.message);result={id};break;
    }
+    
+case 'saveTaskReview': {
+  assertAdmin(profile.role);
+
+  const id = asText(data.id, 60);
+  const decision = asText(data.decision, 20);
+  const note = asText(data.note, 2000);
+
+  if (!id) throw new Error('Task ID is required.');
+
+  if (!['approved', 'revision'].includes(decision)) {
+    throw new Error('Invalid review decision.');
+  }
+
+  if (decision === 'revision' && !note) {
+    throw new Error('Revision feedback is required.');
+  }
+
+  const { error } = await db.rpc(
+    'backend_admin_review_task',
+    {
+      p_task_id: id,
+      p_actor: user.id,
+      p_decision: decision,
+      p_note: note
+    }
+  );
+
+  if (error) throw new Error(error.message);
+
+  result = {
+    message: decision === 'approved'
+      ? 'Work approved. Payout awaiting processing.'
+      : 'Revision requested and feedback saved.'
+  };
+
+  break;
+}
    case 'setTaskStatus':{
     assertAdmin(profile.role);
     const id=asText(data.id,60),status=asText(data.status,50);
