@@ -191,6 +191,18 @@ const createTask = async (input: CreateTask): Promise<ActionResult> => {
   }
 };
 
+const saveTaskReview = (
+  id: string,
+  decision: 'approved' | 'revision',
+  note: string
+): Promise<ActionResult> =>
+  reply(
+    () => command('saveTaskReview', { id, decision, note }),
+    decision === 'approved'
+      ? 'Work approved. Payout awaiting processing.'
+      : 'Revision requested and feedback saved.'
+  );
+
  const setTaskStatus=async(id:string,status:TaskStatus)=>{await command('setTaskStatus',{id,status});await refresh();};
  const resetPenalties=async(id?:string)=>{if(!id)throw new Error('Select one designer to reset.');await command('resetPenalties',{id});await refresh();};
  const logout=()=>{void supabase!.auth.signOut().finally(()=>setUser(null));};
@@ -201,7 +213,7 @@ const createTask = async (input: CreateTask): Promise<ActionResult> => {
   user,tasks,orders,penalties,cart,wishlist,paymentSettings,customPrices,givingArticles,refresh,approveDesigner,upsertProduct,markPaid,
   loginDemo:()=>{},registerDemo:()=>{},logout,claimTask,submitTask,addCart,setCartQuantity,addCustomToCart,removeCart,toggleWishlist,
   placeOrder,updatePaymentSettings,setOrderPaymentStatus,updateOrderTracking,upsertGivingArticle,deleteGivingArticle,
-  updateCustomPrice,setCreatorEarningsVisibility,createTask,setTaskStatus,resetPenalties,simulateExpiry:()=>{},resetDemo:()=>{}
+  updateCustomPrice,setCreatorEarningsVisibility,createTask,setTaskStatus,saveTaskReview,resetPenalties,simulateExpiry:()=>{},resetDemo:()=>{}
  };
  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }
